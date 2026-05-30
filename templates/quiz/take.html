@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+
+{% block title %}{{ quiz.name }} - Take Quiz{% endblock %}
+
+{% block extra_css %}
+<style>
+    .question-container {
+        animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .option-btn {
+        text-align: left;
+        padding: 14px 18px;
+        margin-bottom: 10px;
+        border: 2px solid var(--gray-200, #e2e8f0);
+        border-radius: 0.75rem !important;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        background: #fff;
+    }
+    .option-btn:hover {
+        border-color: var(--primary-light, #93c5fd);
+        background: var(--primary-subtle, #eff6ff);
+        transform: translateX(4px);
+    }
+    .option-btn.selected {
+        border-color: var(--primary, #2563eb);
+        background: var(--primary-subtle, #eff6ff);
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+    }
+    .quiz-timer {
+        font-family: var(--font-mono, 'JetBrains Mono', monospace);
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--primary, #2563eb);
+        letter-spacing: 0.04em;
+    }
+    .progress-indicator {
+        height: 6px;
+        background: var(--gray-200, #e2e8f0);
+        border-radius: 999px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Quiz Header with Timer -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h2><i class="bi bi-question-circle"></i> {{ quiz.name }}</h2>
+        <p class="text-muted mb-0">
+            {% if quiz.is_adaptive %}
+            <span class="badge bg-success me-1"><i class="bi bi-magic"></i> Adaptive</span>
+            {% endif %}
+            <span class="badge bg-info">{{ questions|length }} Total Questions</span>
+            <span class="badge bg-warning ms-1"><i class="bi bi-bookmark-star-fill"></i> 1 mark each</span>
+            <span class="badge bg-dark ms-1">Total: {{ questions|length }} marks</span>
+        </p>
+    </div>
+    <div class="col-md-6 text-md-end">
+        <div class="quiz-timer" id="timer">00:00</div>
+        <small class="text-muted">Time Elapsed</small>
+    </div>
+</div>
+
+<!-- Progress Bar -->
+<div class="progress progress-indicator mb-4">
+    <div class="progress-bar bg-primary" role="progressbar" id="progressBar" style="width: 0%"></div>
+    <div class="progress-bar bg-success ms-1" role="progressbar" id="progressBarAnswered" style="width: 0%"></div>
+</div>
+
+<!-- Question Counter -->
+<div class="alert alert-info mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <span><strong id="questionCounter">Question 1</strong> of <strong>{{ questions|length }}</strong></span>
+        <span><strong id="answeredCount">0</strong> answered</span>
+    </div>
+</div>
+
+<!-- Quiz Form -->
+<form id="quizForm" method="POST" action="{{ url_for('quiz.submit_quiz', quiz_id=quiz.id) }}">
+    <input type="hidden" name="attempt_id" value="{{ attempt_id }}">
+    <input type="hidden" name="time_taken" id="time_taken_input" value="0">
+    
+    <!-- PERSISTENT hidden inputs for ALL questions - these survive navigation -->
+    <div id="hiddenAnswers">
+        {% for q in questions %}
+        <input type="hidden" name="question_{{ q.id }}" id="persistent_answer_{{ q.id }}" value="">
+        {% endfor %}
+    </div>
+    
+    <!-- Questions Container (One at a time) -->
+    <div id="questionsContainer"></div>
+    
+    <!-- Navigation Buttons -->
+    <div class="card bg-light mt-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <button type="button" class="btn btn-outline-secondary" id="prevBtn" onclick="previousQuestion()" disabled>
+                    <i class="bi bi-arrow-left"></i> Previous
+                </button>
+                <span id="navigationInfo" class="text-muted">1 / {{ questions|length }}</span>
+                <button type="button" class="btn btn-outline-secondary" id="nextBtn" onclick="nextQuestion()">
+                    Next <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Submit Button (shown on last question) -->
+    <div id="submitContainer" class="card bg-success text-white mt-3" style="display: none;">
+        <div class="card-body text-center">
+            <p class="mb-3">
+                <i class="bi bi-info-circle"></i> You've reached the last question. Ready to submit?
+            </p>
+            <button type="submit" class="btn btn-light btn-lg" id="submitBtn">
+                <i class="bi bi-check-circle"></i> Submit Quiz & View Results
+            </button>
+        </div>
+    </div>
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const questions = {{ questions|tojson|safe }};
+    let currentQuestion = 0;
+    let userAnswers = {};
+    let startTime = Date.now();
+    let seconds = 0;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        displayQuestion(0);
+        startTimer();
+    });
+
+    // Timer
+    function startTimer() {
+        setInterval(() => {
+            seconds++;
+            const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const secs = (seconds % 60).toString().padStart(2, '0');
+            document.getElementById('timer').textContent = `${mins}:${secs}`;
+        }, 1000);
+    }
+
+    // Display question
+    function displayQuestion(index) {
+        if (index < 0 || index >= questions.length) return;
+        
+        currentQuestion = index;
+        const q = questions[index];
+        
+        // Safely handle missing fields
+        const difficulty = q.difficulty || 'medium';
+        const qType = q.type || 'mcq';
+        const concept = q.concept || 'General';
+        const options = Array.isArray(q.options) ? q.options : [];
+        const questionText = q.text || q.question || 'Question not available';
+        
+        const diffBadgeColor = difficulty === 'easy' ? 'success' : difficulty === 'medium' ? 'warning' : 'danger';
+        const diffLabel = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+        
+        let typeBadge = 'MCQ';
+        let typeBadgeColor = 'info';
+        if (qType === 'true_false') { typeBadge = 'TRUE / FALSE'; typeBadgeColor = 'success'; }
+        else if (qType === 'short_answer') { typeBadge = 'SHORT ANSWER'; typeBadgeColor = 'warning'; }
+        
+        let html = `<div class="question-container">
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>
+                            <strong>Question ${index + 1}</strong>
+                            <span class="badge bg-${diffBadgeColor} ms-2">${diffLabel}</span>
+                        </span>
+                        <span class="badge bg-${typeBadgeColor}">${typeBadge}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="lead mb-4">${escapeHtml(questionText)}</p>`;
+
+        // MCQ Options — use index-based selection for robustness
+        if (qType === 'mcq' && options.length > 0) {
+            html += `<div class="options-container" id="options_${q.id}">`;
+            const optionLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
+            options.forEach((option, i) => {
+                // Strip any existing letter prefix (e.g. "A. Paris" → "Paris") for clean display
+                let displayText = String(option).replace(/^[A-Da-d][.):\s]+\s*/, '');
+                const label = optionLabels[i] || String(i + 1);
+                const isSelected = userAnswers[q.id] === label;
+                html += `<button type="button" 
+                    class="btn btn-outline-secondary option-btn w-100 ${isSelected ? 'selected' : ''}"
+                    onclick="selectMcqOption('${q.id}', ${i})"
+                    data-option-index="${i}">
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-${isSelected ? 'primary' : 'secondary'} me-3">${label}</span>
+                        <i class="bi ${isSelected ? 'bi-check-circle-fill text-primary' : 'bi-circle'} me-2"></i>
+                        <span>${escapeHtml(displayText)}</span>
+                    </div>
+                </button>`;
+            });
+            html += `</div>`;
+        }
+        // True/False
+        else if (qType === 'true_false') {
+            const savedAnswer = userAnswers[q.id];
+            html += `<div class="btn-group w-100" role="group">
+                <input type="radio" class="btn-check" name="tf_display_${q.id}" 
+                       id="true_${q.id}" value="True" ${savedAnswer === 'True' ? 'checked' : ''} 
+                       onchange="recordAnswer('${q.id}', 'True')">
+                <label class="btn btn-outline-success" for="true_${q.id}">
+                    <i class="bi bi-check-circle"></i> True
+                </label>
+                
+                <input type="radio" class="btn-check" name="tf_display_${q.id}" 
+                       id="false_${q.id}" value="False" ${savedAnswer === 'False' ? 'checked' : ''} 
+                       onchange="recordAnswer('${q.id}', 'False')">
+                <label class="btn btn-outline-danger" for="false_${q.id}">
+                    <i class="bi bi-x-circle"></i> False
+                </label>
+            </div>`;
+        }
+        // Short Answer
+        else if (qType === 'short_answer') {
+            html += `<textarea class="form-control" 
+                      rows="4" placeholder="Type your answer here..." 
+                      id="sa_display_${q.id}" 
+                      onchange="recordAnswer('${q.id}', this.value)"
+                      oninput="recordAnswer('${q.id}', this.value)">${escapeHtml(userAnswers[q.id] || '')}</textarea>`;
+        }
+
+        html += `</div>
+                <div class="card-footer bg-light">
+                    <small class="text-muted"><i class="bi bi-tag"></i> Concept: ${escapeHtml(concept)}</small>
+                </div>
+            </div>
+        </div>`;
+
+        document.getElementById('questionsContainer').innerHTML = html;
+        
+        // Update UI
+        updateNavigation();
+        updateProgress();
+    }
+
+    // Escape HTML to prevent XSS and rendering issues
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = String(text);
+        return div.innerHTML;
+    }
+
+    // Select MCQ option by index — avoids string escaping issues entirely
+    function selectMcqOption(questionId, optionIndex) {
+        const q = questions.find(q => q.id === questionId);
+        if (!q || !Array.isArray(q.options) || optionIndex >= q.options.length) return;
+        
+        // Store the letter (A/B/C/D) as the answer — matches correct_answer format
+        const optionLabels = ['A', 'B', 'C', 'D'];
+        const value = optionLabels[optionIndex] || String(optionIndex);
+        
+        // Update UI
+        const container = document.getElementById('options_' + questionId);
+        if (container) {
+            container.querySelectorAll('.option-btn').forEach((btn, i) => {
+                const isThis = i === optionIndex;
+                btn.classList.toggle('selected', isThis);
+                const icon = btn.querySelector('i');
+                if (icon) {
+                    icon.className = isThis ? 'bi bi-check-circle-fill text-primary me-2' : 'bi bi-circle me-2';
+                }
+                const badge = btn.querySelector('.badge');
+                if (badge) {
+                    badge.className = isThis ? 'badge bg-primary me-3' : 'badge bg-secondary me-3';
+                }
+            });
+        }
+        
+        recordAnswer(questionId, value);
+    }
+
+    // Record answer - saves to both JS object AND persistent hidden input
+    function recordAnswer(questionId, value) {
+        userAnswers[questionId] = value;
+        
+        // Update the persistent hidden input that will be submitted with the form
+        const hiddenInput = document.getElementById('persistent_answer_' + questionId);
+        if (hiddenInput) {
+            hiddenInput.value = value || '';
+        }
+        
+        updateProgress();
+    }
+
+    // Navigation
+    function nextQuestion() {
+        if (currentQuestion < questions.length - 1) {
+            displayQuestion(currentQuestion + 1);
+        }
+    }
+
+    function previousQuestion() {
+        if (currentQuestion > 0) {
+            displayQuestion(currentQuestion - 1);
+        }
+    }
+
+    // Update navigation buttons
+    function updateNavigation() {
+        document.getElementById('questionCounter').textContent = `Question ${currentQuestion + 1}`;
+        document.getElementById('navigationInfo').textContent = `${currentQuestion + 1} / ${questions.length}`;
+        
+        document.getElementById('prevBtn').disabled = currentQuestion === 0;
+        document.getElementById('nextBtn').style.display = currentQuestion === questions.length - 1 ? 'none' : 'block';
+        
+        document.getElementById('submitContainer').style.display = currentQuestion === questions.length - 1 ? 'block' : 'none';
+    }
+
+    // Update progress
+    function updateProgress() {
+        const answeredCount = Object.keys(userAnswers).length;
+        const totalCount = questions.length;
+        
+        const progress = ((currentQuestion + 1) / totalCount) * 100;
+        const answeredProgress = (answeredCount / totalCount) * 100;
+        
+        document.getElementById('progressBar').style.width = progress + '%';
+        document.getElementById('progressBarAnswered').style.width = answeredProgress + '%';
+        document.getElementById('answeredCount').textContent = answeredCount;
+    }
+
+    // Form submission validation
+    document.getElementById('quizForm').addEventListener('submit', function(e) {
+        const answeredCount = Object.keys(userAnswers).length;
+        const totalCount = questions.length;
+        
+        if (answeredCount < totalCount) {
+            if (!confirm(`You have answered ${answeredCount} out of ${totalCount} questions. Submit anyway?\n\nUnanswered questions will be marked incorrect.`)) {
+                e.preventDefault();
+                return false;
+            }
+        }
+        
+        // Set the time taken value
+        document.getElementById('time_taken_input').value = seconds;
+        
+        // Critical: Ensure ALL persistent hidden inputs are properly set before submit
+        let answeredQuestionsData = [];
+        for (const q of questions) {
+            const hiddenInput = document.getElementById('persistent_answer_' + q.id);
+            if (hiddenInput) {
+                const answer = userAnswers[q.id] || '';
+                hiddenInput.value = answer;
+                console.log(`[SUBMIT] Question ${q.id}: "${answer}"`);
+                if (answer) {
+                    answeredQuestionsData.push({id: q.id, answer: answer});
+                }
+            }
+        }
+        
+        // Log submission details
+        console.log(`[SUBMIT] Total questions: ${questions.length}`);
+        console.log(`[SUBMIT] Questions answered: ${answeredQuestionsData.length}`);
+        console.log(`[SUBMIT] Time taken: ${seconds} seconds`);
+        console.log('[SUBMIT] Form data:');
+        const formData = new FormData(this);
+        let questionCount = 0;
+        for (let [key, value] of formData.entries()) {
+            if (key.startsWith('question_')) {
+                questionCount++;
+                console.log(`  ${key} = "${value}"`);
+            }
+        }
+        console.log(`[SUBMIT] Total question_* fields in form: ${questionCount}`);
+        
+        // Ensure we have question data
+        if (questionCount === 0) {
+            console.error('[SUBMIT] WARNING: No question fields found in form!');
+        }
+        
+        return true;
+    });
+
+    // Allow keyboard navigation (arrow keys)
+    document.addEventListener('keydown', function(e) {
+        if (e.target.tagName === 'TEXTAREA') return; // Don't navigate when typing in textarea
+        if (e.key === 'ArrowRight') nextQuestion();
+        if (e.key === 'ArrowLeft') previousQuestion();
+    });</script>
+{% endblock %}

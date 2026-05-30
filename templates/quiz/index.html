@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Available Quizzes - Adaptive Quiz Generator{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-lg-8 mb-2 mb-lg-0">
+        <h1 class="fw-bold"><i class="bi bi-collection-play" style="color:var(--primary)"></i> Available Quizzes</h1>
+        <p class="text-muted mb-0">Select a quiz to start your adaptive learning session</p>
+    </div>
+    <div class="col-lg-4 text-lg-end">
+        <a href="{{ url_for('quiz.find_quiz') }}" class="btn btn-success me-1 mb-1">
+            <i class="bi bi-search"></i> Find by Code
+        </a>
+        <a href="{{ url_for('instructor.upload_document') }}" class="btn btn-info mb-1">
+            <i class="bi bi-plus-circle"></i> Create Quiz
+        </a>
+    </div>
+</div>
+
+{% if quizzes %}
+<div class="row g-4">
+    {% for quiz in quizzes %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header bg-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ quiz.name }}</h5>
+                    {% if quiz.is_adaptive %}
+                    <span class="badge bg-success"><i class="bi bi-magic"></i> Adaptive</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Quiz Code Display -->
+                {% if quiz.quiz_code %}
+                <div class="alert alert-light alert-sm mb-3 py-2 px-3" role="alert">
+                    <small class="text-muted">Access Code:</small>
+                    <div style="font-family: 'Courier New', monospace; font-weight: bold; letter-spacing: 1px; font-size: 0.9em;">
+                        {{ quiz.quiz_code }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <span class="badge bg-light text-dark me-1">
+                        <i class="bi bi-hash"></i> {{ quiz.num_questions }} questions
+                    </span>
+                    {% if quiz.is_password_protected %}
+                    <span class="badge bg-warning text-dark">
+                        <i class="bi bi-lock"></i> Password Protected
+                    </span>
+                    {% endif %}
+                </div>
+                
+                <p class="text-muted">
+                    <strong>Difficulty:</strong> 
+                    <span class="text-capitalize">{{ quiz.difficulty or 'Mixed' }}</span>
+                </p>
+                
+                {% if quiz.question_types %}
+                <p class="text-muted small mb-0">
+                    <strong>Types:</strong> 
+                    {% for qt in quiz.question_types %}
+                    <span class="badge bg-secondary">{{ qt }}</span>
+                    {% endfor %}
+                </p>
+                {% endif %}
+            </div>
+            <div class="card-footer bg-white">
+                <a href="{{ url_for('quiz.start_quiz', quiz_id=quiz.id) }}" class="btn btn-primary w-100">
+                    <i class="bi bi-play-circle"></i> Start Quiz
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card bg-light border-0 text-center py-5">
+    <div class="card-body">
+        <i class="bi bi-inbox display-1 text-muted mb-3"></i>
+        <h3 class="mt-3 text-muted">No Quizzes Available</h3>
+        <p class="text-muted mb-4">No public quizzes found. You can either create your own or find a quiz by code.</p>
+        
+        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+            <a href="{{ url_for('quiz.find_quiz') }}" class="btn btn-success btn-lg">
+                <i class="bi bi-search"></i> Find Quiz by Code
+            </a>
+            <a href="{{ url_for('instructor.upload_document') }}" class="btn btn-info btn-lg">
+                <i class="bi bi-plus-circle"></i> Create New Quiz
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz History - Adaptive Quiz Generator{% endblock %}
+
+{% block extra_css %}
+<style>
+    .grade-badge { font-size: 0.85rem; font-weight: 600; padding: 0.35rem 0.7rem; border-radius: var(--radius-full, 999px); }
+    .history-row:hover { background-color: var(--gray-50, #f8fafc); transition: all 0.2s; }
+    .stat-card { transition: transform 0.2s cubic-bezier(0.16,1,0.3,1); }
+    .stat-card:hover { transform: translateY(-3px); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-clock-history text-primary"></i> Quiz History</h2>
+        <p class="text-muted">View your past quiz attempts and performance</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('dashboard.progress') }}" class="btn btn-outline-primary">
+            <i class="bi bi-graph-up"></i> View Full Progress
+        </a>
+    </div>
+</div>
+
+<!-- Summary Stats -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white stat-card shadow-sm">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ history|length }}</h3>
+                <small>Total Attempts</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white stat-card shadow-sm">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ avg_score }}%</h3>
+                <small>Average Score</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white stat-card shadow-sm">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ best_score }}%</h3>
+                <small>Best Score</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-warning text-white stat-card shadow-sm">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ total_questions }}</h3>
+                <small>Questions Answered</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search & Filter -->
+<div class="row mb-3">
+    <div class="col-md-6">
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" id="searchQuiz" placeholder="Search quizzes...">
+        </div>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="filterScore">
+            <option value="">All Scores</option>
+            <option value="high">High (&ge;80%)</option>
+            <option value="medium">Medium (50-79%)</option>
+            <option value="low">Low (&lt;50%)</option>
+        </select>
+    </div>
+</div>
+
+<!-- Quiz History Table -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="historyTable">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 25%;">Quiz Name</th>
+                        <th style="width: 12%;">Date</th>
+                        <th style="width: 10%;" class="text-center">Score</th>
+                        <th style="width: 10%;" class="text-center">Marks</th>
+                        <th style="width: 15%;">Performance</th>
+                        <th style="width: 8%;" class="text-center">Time</th>
+                        <th style="width: 8%;" class="text-center">Grade</th>
+                        <th style="width: 7%;" class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attempt in history %}
+                    <tr class="history-row" data-score="{{ attempt.score }}" data-name="{{ attempt.quiz_name|lower }}">
+                        <td><strong class="text-muted">{{ loop.index }}</strong></td>
+                        <td>
+                            <strong>{{ attempt.quiz_name }}</strong>
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ attempt.date }}</small>
+                        </td>
+                        <td class="text-center">
+                            <strong class="fs-6 {{ 'text-success' if attempt.score >= 80 else 'text-warning' if attempt.score >= 50 else 'text-danger' }}">
+                                {{ attempt.score }}%
+                            </strong>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-{{ 'success' if attempt.score >= 60 else 'danger' }} fs-6">
+                                {{ attempt.marks_obtained }}/{{ attempt.total_marks }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar {{ 'bg-success' if attempt.score >= 80 else 'bg-warning' if attempt.score >= 60 else 'bg-danger' }}" 
+                                     style="width: {{ attempt.score }}%">
+                                    <span class="px-1">{{ attempt.correct }}/{{ attempt.total }}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <small class="text-muted">{{ attempt.time_taken_display }}</small>
+                        </td>
+                        <td class="text-center">
+                            {% if attempt.score >= 90 %}
+                            <span class="badge bg-success grade-badge"><i class="bi bi-trophy-fill"></i> A+</span>
+                            {% elif attempt.score >= 80 %}
+                            <span class="badge bg-success grade-badge">A</span>
+                            {% elif attempt.score >= 70 %}
+                            <span class="badge bg-info grade-badge">B</span>
+                            {% elif attempt.score >= 60 %}
+                            <span class="badge bg-warning grade-badge">C</span>
+                            {% elif attempt.score >= 50 %}
+                            <span class="badge bg-secondary grade-badge">D</span>
+                            {% else %}
+                            <span class="badge bg-danger grade-badge">F</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if attempt.attempt_id and attempt.quiz_id %}
+                            <a href="{{ url_for('quiz.results', quiz_id=attempt.quiz_id, attempt_id=attempt.attempt_id) }}" 
+                               class="btn btn-sm btn-outline-primary" title="View Results">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-5">
+                            <i class="bi bi-clipboard-x" style="font-size: 3rem;"></i>
+                            <h5 class="mt-3">No quiz attempts yet</h5>
+                            <p>Start taking quizzes to see your history here!</p>
+                            <a href="{{ url_for('quiz.index') }}" class="btn btn-primary mt-2">
+                                <i class="bi bi-play-fill"></i> Take Your First Quiz
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Chart -->
+{% if history %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-graph-up text-primary"></i> Performance Trend</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="performanceTrend" height="80"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Filtering
+function filterHistory() {
+    const scoreFilter = document.getElementById('filterScore').value;
+    const search = document.getElementById('searchQuiz').value.toLowerCase();
+    
+    const rows = document.querySelectorAll('#historyTable tbody .history-row');
+    
+    rows.forEach(row => {
+        let show = true;
+        const score = parseFloat(row.dataset.score || 0);
+        const name = row.dataset.name || '';
+        
+        if (scoreFilter === 'high' && score < 80) show = false;
+        if (scoreFilter === 'medium' && (score < 50 || score >= 80)) show = false;
+        if (scoreFilter === 'low' && score >= 50) show = false;
+        if (search && !name.includes(search)) show = false;
+        
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+document.getElementById('filterScore').addEventListener('change', filterHistory);
+document.getElementById('searchQuiz').addEventListener('input', filterHistory);
+
+// Performance Trend Chart
+{% if history %}
+const historyData = {{ history | tojson }};
+if (historyData.length > 0) {
+    const chronological = [...historyData].reverse();
+    const labels = chronological.map(h => {
+        const name = h.quiz_name || 'Quiz';
+        const shortName = name.length > 15 ? name.substring(0, 12) + '...' : name;
+        return h.date !== 'N/A' ? shortName + ' (' + h.date.substring(5) + ')' : shortName;
+    });
+    const scores = chronological.map(h => h.score);
+    
+    const ctx = document.getElementById('performanceTrend');
+    const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 300);
+    gradient.addColorStop(0, 'rgba(37, 99, 235, 0.3)');
+    gradient.addColorStop(1, 'rgba(37, 99, 235, 0.0)');
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Score (%)',
+                data: scores,
+                borderColor: '#2563eb',
+                backgroundColor: gradient,
+                fill: true,
+                tension: 0.3,
+                pointRadius: 6,
+                pointHoverRadius: 10,
+                pointBackgroundColor: scores.map(s => s >= 80 ? '#16a34a' : s >= 60 ? '#ca8a04' : '#dc2626'),
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } },
+                x: { ticks: { maxRotation: 45, font: { size: 10 } } }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => 'Score: ' + ctx.parsed.y.toFixed(1) + '%'
+                    }
+                }
+            }
+        }
+    });
+}
+{% endif %}
+</script>
+{% endblock %}

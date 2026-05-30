@@ -1,0 +1,526 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz Results - Adaptive Quiz Generator{% endblock %}
+
+{% block extra_css %}
+<style>
+    .shadow-lg { box-shadow: var(--shadow-xl, 0 20px 25px -5px rgba(0,0,0,0.08)) !important; }
+    .progress { border-radius: 999px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.06); }
+    .badge { font-weight: 600; }
+    .card { border-radius: var(--radius-lg, 0.75rem); }
+    .btn-lg { padding: 0.75rem 1.5rem; font-size: 1.05rem; }
+    .result-card { border-left: 5px solid; transition: all 0.3s cubic-bezier(0.16,1,0.3,1); border-radius: var(--radius-lg, 0.75rem); }
+    .result-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md, 0 4px 6px rgba(0,0,0,0.08)); }
+    .result-correct   { border-left-color: var(--success, #16a34a); }
+    .result-incorrect { border-left-color: var(--danger, #dc2626); }
+    .score-circle {
+        width: 180px; height: 180px; border-radius: 50%;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        margin: 0 auto; border: 8px solid; font-weight: bold;
+    }
+    .score-high { border-color: var(--success, #16a34a); color: var(--success, #16a34a); }
+    .score-mid  { border-color: var(--warning, #ca8a04); color: #854d0e; }
+    .score-low  { border-color: var(--danger, #dc2626);  color: var(--danger, #dc2626); }
+    .explanation-box { background: var(--gray-50, #f8fafc); border-left: 4px solid var(--gray-400, #94a3b8); padding: 15px; border-radius: 0 0.5rem 0.5rem 0; }
+    .question-number { width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem; }
+    .q-correct   { background: var(--success-light, #d1fae5); color: #065f46; }
+    .q-incorrect  { background: var(--danger-light, #fef2f2); color: #991b1b; }
+
+    @media (max-width: 767.98px) {
+        .score-circle { width: 140px; height: 140px; }
+        .score-circle .display-4 { font-size: 2rem !important; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-clipboard-check text-primary"></i> Quiz Results</h1>
+        <p class="text-muted">{{ result.quiz_info.name if result.get('quiz_info') else 'Quiz' }}</p>
+    </div>
+    <div class="col-auto">
+        <div class="card border-0 bg-light">
+            <div class="card-body py-2 px-3">
+                <small class="text-muted d-block"><i class="bi bi-calendar3"></i> Date: <strong>{{ result.quiz_info.date if result.get('quiz_info') else 'N/A' }}</strong></small>
+                <small class="text-muted d-block"><i class="bi bi-arrow-repeat"></i> Attempt: <strong>#{{ result.quiz_info.total_attempts_on_quiz if result.get('quiz_info') else '1' }}</strong></small>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Score Summary Card -->
+<div class="row justify-content-center mb-4">
+    <div class="col-md-10">
+        <div class="card shadow-lg border-0">
+            <div class="card-body py-5">
+                <div class="row align-items-center">
+                    <!-- Score Circle -->
+                    <div class="col-md-4 text-center mb-4 mb-md-0">
+                        {% set score_val = result.get('score', 0)|float %}
+                        <div class="score-circle {{ 'score-high' if score_val >= 80 else 'score-mid' if score_val >= 60 else 'score-low' }}">
+                            <span class="display-4">{{ "%.1f"|format(score_val) }}%</span>
+                            <small>Score</small>
+                        </div>
+                        <div class="mt-3">
+                            {% if score_val >= 80 %}
+                            <span class="badge bg-success fs-5 px-4 py-2"><i class="bi bi-trophy-fill"></i> Excellent!</span>
+                            {% elif score_val >= 60 %}
+                            <span class="badge bg-warning text-dark fs-5 px-4 py-2"><i class="bi bi-star-fill"></i> Good Job!</span>
+                            {% else %}
+                            <span class="badge bg-danger fs-5 px-4 py-2"><i class="bi bi-book-fill"></i> Keep Learning!</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Score Details -->
+                    <div class="col-md-8">
+                        <div class="row g-3">
+                            <!-- Marks Obtained - MAIN SCORE DISPLAY -->
+                            <div class="col-sm-6">
+                                <div class="card bg-light border-0 h-100">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted mb-2"><i class="bi bi-bookmark-star-fill text-primary"></i> <strong>Marks Obtained</strong></h6>
+                                        <div class="mb-2">
+                                            <span class="display-5 {{ 'text-success' if score_val >= 60 else 'text-danger' }}">
+                                                <strong>{{ result.get('marks_obtained', result.get('correct', 0))|int }}</strong>
+                                            </span>
+                                            <span class="fs-3 text-muted"> / </span>
+                                            <span class="display-5">
+                                                <strong>{{ result.get('total_marks', result.get('total_questions', 0))|int }}</strong>
+                                            </span>
+                                        </div>
+                                        <small class="text-muted">1 mark per question</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Correct/Total -->
+                            <div class="col-sm-6">
+                                <div class="card bg-light border-0 h-100">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted mb-2"><i class="bi bi-check-circle-fill text-success"></i> Questions Correct</h6>
+                                        <h2 class="mb-0">
+                                            <span class="text-success"><strong>{{ result.get('correct', 0)|int }}</strong></span> 
+                                            <span class="text-muted">/</span> 
+                                            <span><strong>{{ result.get('total_questions', 0)|int }}</strong></span>
+                                        </h2>
+                                        <small class="text-muted">correct out of total</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Percentage -->
+                            <div class="col-sm-6">
+                                <div class="card bg-light border-0 h-100">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted mb-2"><i class="bi bi-percent text-info"></i> Percentage</h6>
+                                        <h2 class="mb-0 {{ 'text-success' if score_val >= 80 else 'text-warning' if score_val >= 60 else 'text-danger' }}">
+                                            {{ "%.1f"|format(score_val) }}%
+                                        </h2>
+                                        <div class="progress mt-2" style="height: 8px;">
+                                            <div class="progress-bar bg-{{ 'success' if score_val >= 80 else 'warning' if score_val >= 60 else 'danger' }}" 
+                                                 style="width: {{ score_val }}%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Time Taken -->
+                            <div class="col-sm-6">
+                                <div class="card bg-light border-0 h-100">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted mb-2"><i class="bi bi-clock-fill text-warning"></i> Time Taken</h6>
+                                        <h2 class="mb-0 text-dark">
+                                            {{ result.get('time_taken_display', 'N/A') }}
+                                        </h2>
+                                        <small class="text-muted">duration</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Best Score on This Quiz -->
+                            {% if result.get('quiz_info') %}
+                            <div class="col-sm-6">
+                                <div class="card bg-light border-0 h-100">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-muted mb-2"><i class="bi bi-trophy text-warning"></i> Best Score (This Quiz)</h6>
+                                        <h2 class="mb-0 {{ 'text-success' if result.quiz_info.best_score_on_quiz >= 80 else 'text-warning' if result.quiz_info.best_score_on_quiz >= 60 else 'text-danger' }}">
+                                            {{ "%.1f"|format(result.quiz_info.best_score_on_quiz) }}%
+                                        </h2>
+                                        <small class="text-muted">across all attempts</small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== CONCEPT PERFORMANCE ========== -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100 shadow">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-bar-chart-fill text-primary"></i> Concept Performance</h5>
+                <small class="text-muted">How you performed by topic</small>
+            </div>
+            <div class="card-body">
+                {% if result.get('concept_performance') %}
+                {% for concept, score in result['concept_performance'].items() %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <strong title="{{ concept }}">{{ concept[:60] + '...' if concept|length > 60 else concept }}</strong>
+                        <span class="badge bg-{{ 'success' if score >= 0.7 else 'warning' if score >= 0.5 else 'danger' }}">
+                            {{ "%.0f"|format(score * 100) }}%
+                        </span>
+                    </div>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar bg-{{ 'success' if score >= 0.7 else 'warning' if score >= 0.5 else 'danger' }}" 
+                             style="width: {{ score * 100 }}%">
+                            {{ "%.0f"|format(score * 100) }}%
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-info-circle fs-1"></i>
+                    <p class="mt-2">No concept data available</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Weak Concepts & Recommendations -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100 shadow">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-lightbulb-fill text-warning"></i> Areas to Improve</h5>
+                <small class="text-muted">Personalized learning recommendations</small>
+            </div>
+            <div class="card-body">
+                {% if recommendations %}
+                <div class="recommendation-list">
+                    {% for rec in recommendations %}
+                    <div class="card mb-3" style="border-left: 4px solid {{ '#dc2626' if rec.priority == 'critical' else '#ea580c' if rec.priority == 'high' else '#fbbf24' if rec.priority == 'medium' else '#16a34a' }};">
+                        <div class="card-body pb-2">
+                            <!-- Concept Header -->
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="mb-1"><strong>{{ rec['concept'] }}</strong></h6>
+                                    <small class="text-muted d-block mb-2">{{ rec['explanation'] }}</small>
+                                </div>
+                                <span class="badge bg-{{ 'danger' if rec.priority == 'critical' else 'warning' if rec.priority == 'high' else 'warning' if rec.priority == 'medium' else 'success' }}">
+                                    {{ "%.0f"|format(rec['score_pct']) }}%
+                                </span>
+                            </div>
+                            
+                            <!-- Action Items -->
+                            {% if rec['actions'] %}
+                            <div class="actions-list">
+                                <small class="text-muted d-block mb-2"><strong>📋 Action Plan:</strong></small>
+                                <ul class="mb-0 ps-3" style="font-size: 0.9rem;">
+                                    {% for action in rec['actions'][:3] %}
+                                    <li class="mb-2">{{ action }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-success py-4">
+                    <i class="bi bi-check-circle-fill fs-1"></i>
+                    <h5 class="mt-3">All Concepts Look Good!</h5>
+                    <p class="text-muted">Great job! Keep up the excellent work.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== ATTEMPTS HISTORY ON THIS QUIZ ========== -->
+{% if result.get('quiz_info') and result.quiz_info.total_attempts_on_quiz > 1 %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-arrow-repeat text-info"></i> Your Attempts on This Quiz</h5>
+                <small class="text-muted">All attempts including current one</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Score</th>
+                                <th>Marks</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if result.get('quiz_info') and result.quiz_info.get('attempts_list') %}
+                                {% for attempt in result.quiz_info.attempts_list %}
+                                <tr class="{% if attempt.attempt_id == result.quiz_info.attempt_id %}table-active fw-bold{% endif %}">
+                                    <td>{{ loop.index }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if attempt.score >= 80 else 'warning' if attempt.score >= 60 else 'danger' }}">
+                                            {{ "%.0f"|format(attempt.score) }}%
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <strong>{{ attempt.get('marks_obtained', attempt.get('correct', 0)) }} / {{ attempt.get('total_marks', attempt.get('total_questions', 0)) }}</strong>
+                                    </td>
+                                    <td><small class="text-muted">{{ attempt.get('timestamp', '')[:10] }}</small></td>
+                                    <td><small class="text-muted">{{ attempt.get('time_taken_display', 'N/A') }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+{% if result.get('results') %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0"><i class="bi bi-list-check"></i> Detailed Answer Review</h5>
+                    <small>Question-by-question breakdown with explanations</small>
+                </div>
+                <span class="badge bg-light text-primary fs-6">
+                    {{ result.get('correct', 0)|int }} / {{ result.get('total_questions', 0)|int }} Correct
+                </span>
+            </div>
+            <div class="card-body">
+                {% for item in result['results'] %}
+                <div class="result-card card mb-3 {{ 'result-correct' if item['is_correct'] else 'result-incorrect' }}">
+                    <div class="card-body">
+                        <!-- Question Header -->
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="question-number {{ 'q-correct' if item['is_correct'] else 'q-incorrect' }} me-3">
+                                {{ loop.index }}
+                            </span>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ item.get('question_text', 'N/A') }}</h6>
+                                <div>
+                                    <span class="badge bg-secondary me-1">{{ item.get('concept', 'General')[:40] }}</span>
+                                    {% set q_type = item.get('question_type', 'mcq') %}
+                                    {% if q_type == 'true_false' %}
+                                    <span class="badge bg-info me-1"><i class="bi bi-toggle-on"></i> True/False</span>
+                                    {% elif q_type == 'short_answer' %}
+                                    <span class="badge bg-warning text-dark me-1"><i class="bi bi-pencil-square"></i> Short Answer</span>
+                                    {% else %}
+                                    <span class="badge bg-primary me-1"><i class="bi bi-list-ol"></i> MCQ</span>
+                                    {% endif %}
+                                    <span class="badge bg-{{ 'success' if item['is_correct'] else 'danger' }}">
+                                        {% if item['is_correct'] %}
+                                        <i class="bi bi-check-circle-fill"></i> Correct — 1 Mark
+                                        {% else %}
+                                        <i class="bi bi-x-circle-fill"></i> Incorrect — 0 Marks
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if item['is_correct'] %}
+                        <!-- ===== CORRECT ANSWER DISPLAY ===== -->
+                        <div class="alert alert-success mb-0">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-check-circle-fill text-success fs-4 me-3 mt-1"></i>
+                                <div>
+                                    <strong>Your Answer (Correct):</strong>
+                                    <p class="mb-1 mt-1 fw-bold">
+                                        {% if item.get('correct_answer', '')|length > 150 %}
+                                            {{ item.get('correct_answer', 'N/A')[:150] }}...
+                                        {% else %}
+                                            {{ item.get('correct_answer', 'N/A') }}
+                                        {% endif %}
+                                    </p>
+                                    <span class="badge bg-success"><i class="bi bi-award-fill"></i> +1 Mark</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% else %}
+                        <!-- ===== INCORRECT ANSWER DISPLAY ===== -->
+                        <!-- Your Wrong Answer -->
+                        <div class="alert alert-danger mb-2">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-x-circle-fill text-danger fs-4 me-3 mt-1"></i>
+                                <div>
+                                    <strong>Your Answer (Wrong):</strong>
+                                    <p class="mb-0 mt-1 fw-bold text-danger">
+                                        {{ item.get('user_answer', 'No answer provided') }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Correct Answer -->
+                        <div class="alert alert-success mb-2">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-check-circle-fill text-success fs-4 me-3 mt-1"></i>
+                                <div>
+                                    <strong>Correct Answer:</strong>
+                                    <p class="mb-0 mt-1 fw-bold text-success">
+                                        {% if item.get('correct_answer', '')|length > 200 %}
+                                            {{ item.get('correct_answer', 'N/A')[:200] }}...
+                                        {% else %}
+                                            {{ item.get('correct_answer', 'N/A') }}
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Explanation -->
+                        {% if item.get('explanation') %}
+                        <div class="explanation-box">
+                            <strong><i class="bi bi-info-circle-fill text-primary"></i> Explanation:</strong>
+                            <p class="mb-0 mt-2">{{ item['explanation'] }}</p>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- Note when viewing older results -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> <strong>Note:</strong> Detailed question-by-question review is only available immediately after completing a quiz. View your concept performance above for insights on areas to improve.
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ========== PERSONALIZED STUDY PLAN ========== -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-lg border-0">
+            <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="mb-0"><i class="bi bi-calendar3"></i> Your Personalized Study Plan</h5>
+                <small>Based on your performance and learning needs</small>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Priority Level -->
+                    <div class="col-md-3 text-center mb-3 mb-md-0">
+                        <div class="card bg-light border-0">
+                            <div class="card-body">
+                                <h6 class="text-muted mb-2"><i class="bi bi-exclamation-diamond"></i> Priority</h6>
+                                <h4 class="{{ 'text-danger' if study_plan.priority_level == 'High' else 'text-warning' if study_plan.priority_level == 'Medium' else 'text-success' }}">
+                                    <strong>{{ study_plan.priority_level }}</strong>
+                                </h4>
+                                <small class="text-muted">Study urgency level</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Estimated Study Hours -->
+                    <div class="col-md-3 text-center mb-3 mb-md-0">
+                        <div class="card bg-light border-0">
+                            <div class="card-body">
+                                <h6 class="text-muted mb-2"><i class="bi bi-clock"></i> Recommended</h6>
+                                <h4 class="text-info"><strong>{{ study_plan.estimated_study_hours | round(1) }} hrs</strong></h4>
+                                <small class="text-muted">suggested study time</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Focus Areas -->
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <div class="card bg-light border-0">
+                            <div class="card-body">
+                                <h6 class="text-muted mb-2"><i class="bi bi-target"></i> Focus Areas</h6>
+                                {% if study_plan.focus_areas %}
+                                <div class="list-unstyled">
+                                    {% for area in study_plan.focus_areas %}
+                                    <small class="d-flex justify-content-between mb-2">
+                                        <span><strong>{{ area.area[:30] }}</strong></span>
+                                        <span class="badge bg-warning text-dark">{{ area.time_allocation }}</span>
+                                    </small>
+                                    <div class="progress mb-2" style="height: 6px;">
+                                        <div class="progress-bar bg-warning" style="width: {{ area.current_score }}%"></div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <small class="text-muted"><i class="bi bi-check-circle"></i> All areas strong!</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recommended Next Steps -->
+                <div class="mt-3 pt-3 border-top">
+                    <h6 class="mb-3"><i class="bi bi-arrow-right-circle"></i> <strong>Next Steps:</strong></h6>
+                    <div class="row">
+                        {% for step in study_plan.next_steps %}
+                        <div class="col-md-6 mb-2">
+                            <div class="d-flex">
+                                <i class="bi bi-check2-circle text-success me-2 mt-1" style="font-size: 1.1rem;"></i>
+                                <small>{{ step }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== ACTIONS ========== -->
+<div class="row">
+    <div class="col-12">
+        <div class="card bg-light border-0 shadow">
+            <div class="card-body text-center py-4">
+                <h5 class="mb-4">What's Next?</h5>
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    {% if quiz and quiz.get('id') %}
+                    <a href="{{ url_for('quiz.start_quiz', quiz_id=quiz['id']) }}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-arrow-repeat"></i> Retake This Quiz
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('quiz.index') }}" class="btn btn-outline-primary btn-lg">
+                        <i class="bi bi-collection"></i> Browse More Quizzes
+                    </a>
+                    <a href="{{ url_for('dashboard.progress') }}" class="btn btn-outline-success btn-lg">
+                        <i class="bi bi-graph-up"></i> View Progress
+                    </a>
+                    <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

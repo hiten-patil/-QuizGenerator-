@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Lecture Notes - Adaptive Quiz Generator{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('instructor.index') }}">Instructor</a></li>
+                <li class="breadcrumb-item active">Upload Document</li>
+            </ol>
+        </nav>
+        <h1><i class="bi bi-cloud-upload"></i> Upload Lecture Notes</h1>
+        <p class="text-muted">Upload your lecture notes to extract concepts and generate quizzes</p>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('instructor.upload_document') }}" 
+                      enctype="multipart/form-data" id="uploadForm">
+                    
+                    <!-- Drop Zone -->
+                    <div class="border border-2 border-dashed rounded-3 p-5 text-center mb-4" 
+                         id="dropZone">
+                        <i class="bi bi-cloud-arrow-up display-1 text-muted"></i>
+                        <h4 class="mt-3">Drag & Drop your file here</h4>
+                        <p class="text-muted">or click to browse</p>
+                        <input type="file" class="d-none" id="fileInput" name="file" 
+                               accept=".pdf,.txt,.docx" required>
+                        <button type="button" class="btn btn-outline-primary" 
+                                onclick="document.getElementById('fileInput').click()">
+                            <i class="bi bi-folder2-open"></i> Choose File
+                        </button>
+                    </div>
+                    
+                    <!-- File Preview -->
+                    <div class="alert alert-info d-none" id="filePreview">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-file-earmark-text fs-2 me-3"></i>
+                            <div>
+                                <strong id="fileName">-</strong>
+                                <br>
+                                <small class="text-muted" id="fileSize">-</small>
+                            </div>
+                            <button type="button" class="btn-close ms-auto" 
+                                    onclick="clearFile()" aria-label="Remove"></button>
+                        </div>
+                    </div>
+                    
+                    <!-- Supported Formats -->
+                    <div class="alert alert-light">
+                        <h6><i class="bi bi-info-circle"></i> Supported Formats</h6>
+                        <div class="d-flex gap-3">
+                            <span><i class="bi bi-file-earmark-pdf text-danger"></i> PDF</span>
+                            <span><i class="bi bi-file-earmark-text text-primary"></i> TXT</span>
+                            <span><i class="bi bi-file-earmark-word text-info"></i> DOCX</span>
+                        </div>
+                        <small class="text-muted">Maximum file size: 16MB</small>
+                    </div>
+                    
+                    <!-- Submit -->
+                    <button type="submit" class="btn btn-primary btn-lg w-100" id="submitBtn" disabled>
+                        <i class="bi bi-cloud-upload"></i> Upload & Process
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- What Happens Next -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5><i class="bi bi-magic"></i> What happens after upload?</h5>
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <span class="badge bg-primary rounded-pill fs-5">1</span>
+                            <h6 class="mt-2">Text Extraction</h6>
+                            <p class="small text-muted">AI extracts text from your document</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <span class="badge bg-primary rounded-pill fs-5">2</span>
+                            <h6 class="mt-2">Concept Detection</h6>
+                            <p class="small text-muted">Key concepts are identified using NLP</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <span class="badge bg-primary rounded-pill fs-5">3</span>
+                            <h6 class="mt-2">Knowledge Graph</h6>
+                            <p class="small text-muted">Concept relationships are mapped</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const filePreview = document.getElementById('filePreview');
+const submitBtn = document.getElementById('submitBtn');
+
+// Drag and drop handlers
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+['dragenter', 'dragover'].forEach(eventName => {
+    dropZone.addEventListener(eventName, highlight, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, unhighlight, false);
+});
+
+function highlight() {
+    dropZone.classList.add('border-primary', 'bg-light');
+}
+
+function unhighlight() {
+    dropZone.classList.remove('border-primary', 'bg-light');
+}
+
+dropZone.addEventListener('drop', handleDrop, false);
+
+function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    handleFiles(files);
+}
+
+fileInput.addEventListener('change', function() {
+    handleFiles(this.files);
+});
+
+function handleFiles(files) {
+    if (files.length > 0) {
+        const file = files[0];
+        const validTypes = ['.pdf', '.txt', '.docx'];
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+        
+        if (!validTypes.includes(ext)) {
+            alert('Invalid file type. Please upload PDF, TXT, or DOCX files.');
+            return;
+        }
+        
+        if (file.size > 16 * 1024 * 1024) {
+            alert('File too large. Maximum size is 16MB.');
+            return;
+        }
+        
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = formatFileSize(file.size);
+        filePreview.classList.remove('d-none');
+        dropZone.classList.add('d-none');
+        submitBtn.disabled = false;
+    }
+}
+
+function clearFile() {
+    fileInput.value = '';
+    filePreview.classList.add('d-none');
+    dropZone.classList.remove('d-none');
+    submitBtn.disabled = true;
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// Click on drop zone opens file dialog
+dropZone.addEventListener('click', function() {
+    fileInput.click();
+});
+
+// Show loading on submit
+document.getElementById('uploadForm').addEventListener('submit', function() {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+});
+</script>
+{% endblock %}

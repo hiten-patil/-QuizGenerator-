@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.name | default('Profile') }} - Adaptive Quiz Generator{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5" style="background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);">
+    <div class="container">
+        <!-- ═══════════════════════════════════════════════════════════════════════            PROFILE HEADER WITH STATS
+        ═════════════════════════════════════════════════════════════════════════════════════ -->
+        <div class="card shadow-xl border-0 mb-5" style="border-radius: 1.25rem; overflow: hidden;">
+            <!-- Gradient Header Background -->
+            <div style="background: linear-gradient(135deg, #1f2937 0%, #1e3a8a 50%, #6366f1 100%); padding: 3rem 2rem;">
+                <div class="row align-items-center">
+                    <!-- Avatar -->
+                    <div class="col-auto mb-3 mb-lg-0">
+                        <div class="bg-white rounded-circle d-inline-flex align-items-center justify-content-center shadow-lg"
+                             style="width: 100px; height: 100px; font-size: 2.5rem; font-weight: 700; color: #6366f1; border: 4px solid rgba(255,255,255,0.3);">
+                            {{ user.name[0] | upper if user.name else 'U' }}
+                        </div>
+                    </div>
+                    
+                    <!-- Profile Info -->
+                    <div class="col">
+                        <h1 class="text-white mb-2 fw-bold" style="font-size: 2rem;">{{ user.name | default('User') }}</h1>
+                        
+                        <div class="row g-3">
+                            <div class="col-auto">
+                                <span class="badge bg-white text-dark px-3 py-2" style="font-size: 0.9rem;">
+                                    <i class="bi bi-envelope"></i> {{ user.email }}
+                                </span>
+                            </div>
+                            <div class="col-auto">
+                                <span class="badge" style="background: linear-gradient(135deg, #a7f3d0, #ccfbf1); color: #0d9488; padding: 0.5rem 1rem; font-size: 0.9rem;">
+                                    <i class="bi bi-{% if user.role == 'instructor' %}mortarboard{% else %}person{% endif %}"></i>
+                                    {{ user.role | title | default('Student') }}
+                                </span>
+                            </div>
+                            <div class="col-auto">
+                                <span class="badge bg-white bg-opacity-25 text-white px-3 py-2" style="font-size: 0.9rem;">
+                                    <i class="bi bi-calendar3"></i> {{ user.created_at | default('N/A') }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Edit Settings Button -->
+                    <div class="col-auto">
+                        <button class="btn btn-light btn-lg" data-bs-toggle="modal" data-bs-target="#settingsModal" style="border-radius: 0.75rem;">
+                            <i class="bi bi-gear"></i> Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════            QUICK STATS
+        ═════════════════════════════════════════════════════════════════════════════════════ -->
+        <div class="row g-4 mb-5">
+            <!-- Total Quizzes Completed -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="card shadow-md border-0" style="border-radius: 1rem; border-top: 4px solid #6366f1;">
+                    <div class="card-body py-4">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <small class="text-muted d-block mb-2">
+                                    <i class="bi bi-journal-check"></i> Quizzes Taken
+                                </small>
+                                <h3 class="mb-0 fw-bold" style="color: #6366f1; font-size: 2rem;">{{ stats.total_quizzes }}</h3>
+                            </div>
+                            <div style="font-size: 3rem; color: #eef2ff; opacity: 0.3;">
+                                <i class="bi bi-book"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Average Score -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="card shadow-md border-0" style="border-top: 4px solid #10b981;">
+                    <div class="card-body py-4">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <small class="text-muted d-block mb-2">
+                                    <i class="bi bi-graph-up"></i> Average Score
+                                </small>
+                                <h3 class="mb-0 fw-bold" style="color: #10b981; font-size: 2rem;">{{ "%.0f"|format(stats.avg_score) }}%</h3>
+                            </div>
+                            <div style="font-size: 3rem; color: #ccfbf1; opacity: 0.3;">
+                                <i class="bi bi-graph-up"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Best Score -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="card shadow-md border-0" style="border-top: 4px solid #f59e0b;">
+                    <div class="card-body py-4">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <small class="text-muted d-block mb-2">
+                                    <i class="bi bi-trophy"></i> Best Score
+                                </small>
+                                <h3 class="mb-0 fw-bold" style="color: #f59e0b; font-size: 2rem;">{{ "%.0f"|format(stats.best_score) }}%</h3>
+                            </div>
+                            <div style="font-size: 3rem; color: #fef3c7; opacity: 0.3;">
+                                <i class="bi bi-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Concepts Mastered -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="card shadow-md border-0" style="border-top: 4px solid #06b6d4;">
+                    <div class="card-body py-4">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <small class="text-muted d-block mb-2">
+                                    <i class="bi bi-lightning"></i> Mastered
+                                </small>
+                                <h3 class="mb-0 fw-bold" style="color: #06b6d4; font-size: 2rem;">{{ stats.concepts_mastered }}</h3>
+                            </div>
+                            <div style="font-size: 3rem; color: #cffafe; opacity: 0.3;">
+                                <i class="bi bi-fire"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════            DETAILED STATS ROW
+        ═════════════════════════════════════════════════════════════════════════════════════ -->
+        <div class="row g-4 mb-5">
+            <div class="col-12 col-md-6">
+                <div class="card shadow-md border-0" style="border-radius: 1rem;">
+                    <div class="card-body p-4">
+                        <h6 class="text-muted text-uppercase fw-bold mb-4" style="font-size: 0.8rem; letter-spacing: 0.05em;">
+                            <i class="bi bi-bar-chart"></i> Learning Statistics
+                        </h6>
+                        
+                        <div class="row g-4">
+                            <div class="col-6">
+                                <div class="p-3 rounded-lg" style="background: linear-gradient(135deg, #eef2ff 0%, #f3f4f6 100%);">
+                                    <small class="text-muted d-block mb-1">Total Time Spent</small>
+                                    <h4 class="mb-0" style="color: #6366f1;">{{ stats.total_time }}</h4>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 rounded-lg" style="background: linear-gradient(135deg, #f3f4f6 0%, #f9fafb 100%);">
+                                    <small class="text-muted d-block mb-1">Questions Attempted</small>
+                                    <h4 class="mb-0" style="color: #1f2937;">{{ stats.total_questions_attempted }}</h4>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 rounded-lg" style="background: linear-gradient(135deg, #ccfbf1 0%, #f3f4f6 100%);">
+                                    <small class="text-muted d-block mb-1">Correct Answers</small>
+                                    <h4 class="mb-0" style="color: #0d9488;">{{ stats.total_correct }}</h4>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 rounded-lg" style="background: linear-gradient(135deg, #fee2e2 0%, #f3f4f6 100%);">
+                                    <small class="text-muted d-block mb-1">Accuracy Rate</small>
+                                    <h4 class="mb-0" style="color: #dc2626;">
+                                        {% if stats.total_questions_attempted > 0 %}
+                                            {{ "%.1f"|format((stats.total_correct / stats.total_questions_attempted) * 100) }}%
+                                        {% else %}
+                                            0%
+                                        {% endif %}
+                                    </h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="col-12 col-md-6">
+                <div class="card shadow-md border-0" style="border-radius: 1rem;">
+                    <div class="card-header bg-white border-0 pb-0">
+                        <h6 class="text-muted text-uppercase fw-bold mb-0" style="font-size: 0.8rem; letter-spacing: 0.05em;">
+                            <i class="bi bi-clock-history"></i> Recent Activity
+                        </h6>
+                    </div>
+                    <div class="card-body p-4">
+                        {% if quiz_history %}
+                        <ul class="list-group list-group-flush">
+                            {% for quiz in (quiz_history|reverse|list)[:5] %}
+                            <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="d-block mb-1">{{ quiz.quiz_name }}</strong>
+                                    <small class="text-muted">{{ quiz.timestamp }}</small>
+                                </div>
+                                <span class="badge bg-primary" style="background: #6366f1 !important; padding: 0.5rem 0.75rem;">
+                                    {{ "%.0f"|format(quiz.score) }}%
+                                </span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                            <p class="mt-2 mb-0">No quiz activity yet</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════            CONCEPTS
+        ═════════════════════════════════════════════════════════════════════════════════════ -->
+        <div class="row g-4 mb-5">
+            <!-- Top Concepts -->
+            <div class="col-12 col-lg-6">
+                <div class="card shadow-md border-0" style="border-radius: 1rem;">
+                    <div class="card-header bg-white border-0 pb-0">
+                        <h6 class="text-muted text-uppercase fw-bold mb-0" style="font-size: 0.8rem; letter-spacing: 0.05em;">
+                            <i class="bi bi-star-fill" style="color: #10b981;"></i> Top Concepts
+                        </h6>
+                    </div>
+                    <div class="card-body p-4">
+                        {% if top_concepts %}
+                        <div class="space-y-3">
+                            {% for concept in top_concepts %}
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <strong class="text-truncate" style="color: #1f2937;">{{ concept.name }}</strong>
+                                    <span class="badge" style="background: linear-gradient(135deg, #10b981, #14b8a6); color: #fff; padding: 0.35rem 0.7rem;">
+                                        {{ concept.mastery }}%
+                                    </span>
+                                </div>
+                                <div class="progress" style="height: 6px; border-radius: 9999px; background: #e5e7eb;">
+                                    <div class="progress-bar" style="background: linear-gradient(90deg, #10b981, #14b8a6); width: {{ concept.mastery }}%"></div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-graph-up" style="font-size: 2rem;"></i>
+                            <p class="mt-2 mb-0">Take quizzes to see your mastery</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Weak Concepts -->
+            <div class="col-12 col-lg-6">
+                <div class="card shadow-md border-0" style="border-radius: 1rem;">
+                    <div class="card-header bg-white border-0 pb-0">
+                        <h6 class="text-muted text-uppercase fw-bold mb-0" style="font-size: 0.8rem; letter-spacing: 0.05em;">
+                            <i class="bi bi-exclamation-triangle-fill" style="color: #f59e0b;"></i> Areas to Improve
+                        </h6>
+                    </div>
+                    <div class="card-body p-4">
+                        {% if weak_concepts %}
+                        <div class="space-y-3">
+                            {% for concept, score in weak_concepts %}
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <strong class="text-truncate" style="color: #1f2937;">{{ concept }}</strong>
+                                    <span class="badge" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; padding: 0.35rem 0.7rem;">
+                                        {{ "%.0f"|format(score * 100) }}%
+                                    </span>
+                                </div>
+                                <div class="progress" style="height: 6px; border-radius: 9999px; background: #e5e7eb;">
+                                    <div class="progress-bar" style="background: linear-gradient(90deg, #ef4444, #dc2626); width: {{ score * 100 }}%"></div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-check-circle" style="font-size: 2rem; color: #10b981;"></i>
+                            <p class="mt-2 mb-0">Great job! All concepts are strong</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════════════            CHARTS
+        ═════════════════════════════════════════════════════════════════════════════════════ -->
+        {% if mastery_labels and mastery_labels|length > 0 or performance_labels and performance_labels|length > 0 %}
+        <div class="row g-4">
+            <!-- Concept Mastery Chart -->
+            {% if mastery_labels and mastery_labels|length > 0 %}
+            <div class="col-12 col-lg-6">
+                <div class="card shadow-md border-0" style="border-radius: 1rem;">
+                    <div class="card-header bg-white border-0 pb-0">
+                        <h6 class="text-muted text-uppercase fw-bold mb-0" style="font-size: 0.8rem; letter-spacing: 0.05em;">
+                            <i class="bi bi-bar-chart" style="color: #6366f1;"></i> Concept Mastery
+                        </h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <canvas id="masteryChart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Performance Over Time Chart -->
+            {% if performance_labels and performance_labels|length > 0 %}
+            <div class="col-12 col-lg-6">
+                <div class="card shadow-md border-0" style="border-radius: 1rem;">
+                    <div class="card-header bg-white border-0 pb-0">
+                        <h6 class="text-muted text-uppercase fw-bold mb-0" style="font-size: 0.8rem; letter-spacing: 0.05em;">
+                            <i class="bi bi-activity" style="color: #10b981;"></i> Performance Trend
+                        </h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <canvas id="performanceChart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-0">
+                <h5 class="modal-title fw-bold">Profile Settings</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-info mb-4" role="alert">
+                    <i class="bi bi-info-circle"></i> Profile settings coming soon
+                </div>
+                <p>This section allows you to update your profile information, change password, and manage preferences.</p>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .space-y-3 > * + * {
+        margin-top: 1rem;
+    }
+    .rounded-lg { border-radius: 0.75rem; }
+</style>
+
+<!-- Charts Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    {% if mastery_labels and mastery_labels|length > 0 %}
+    const masteryCtx = document.getElementById('masteryChart').getContext('2d');
+    new Chart(masteryCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ mastery_labels | safe }},
+            datasets: [{
+                label: 'Mastery %',
+                data: {{ mastery_data | safe }},
+                backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                borderColor: '#6366f1',
+                borderRadius: 8,
+                borderWidth: 0,
+                barThickness: 'flex'
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }},
+            scales: {
+                x: { beginAtZero: true, max: 100 }
+            }
+        }
+    });
+    {% endif %}
+
+    {% if performance_labels and performance_labels|length > 0 %}
+    const perfCtx = document.getElementById('performanceChart').getContext('2d');
+    new Chart(perfCtx, {
+        type: 'line',
+        data: {
+            labels: {{ performance_labels | safe }},
+            datasets: [{
+                label: 'Score %',
+                data: {{ performance_data | safe }},
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#10b981',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }},
+            scales: {
+                y: { beginAtZero: true, max: 100 }
+            }
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}

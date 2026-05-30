@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Adaptive Quiz Generator{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h1 class="fw-bold"><i class="bi bi-speedometer2" style="color:var(--primary)"></i> Dashboard</h1>
+        <p class="text-muted mb-0">Welcome back, <strong>{{ user.name or session.get('name', 'Learner') }}</strong>!</p>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-3 mb-5">
+    <div class="col-6 col-lg-3">
+        <div class="card bg-primary text-white h-100 stats-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h4>{{ stats.total_quizzes }}</h4>
+                        <p class="mb-0 small">Quizzes Completed</p>
+                    </div>
+                    <i class="bi bi-clipboard-check fs-2 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card bg-success text-white h-100 stats-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h4>{{ "%.1f"|format(stats.average_score) }}%</h4>
+                        <p class="mb-0 small">Average Score</p>
+                    </div>
+                    <i class="bi bi-graph-up fs-2 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card bg-info text-white h-100 stats-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h4>{{ stats.concepts_mastered }}</h4>
+                        <p class="mb-0 small">Concepts Mastered</p>
+                    </div>
+                    <i class="bi bi-award fs-2 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card bg-warning text-dark h-100 stats-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h4>{{ stats.total_concepts }}</h4>
+                        <p class="mb-0 small">Total Concepts</p>
+                    </div>
+                    <i class="bi bi-lightbulb fs-2 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Activity -->
+    <div class="col-lg-7 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Quizzes</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_quizzes %}
+                <div class="list-group list-group-flush">
+                    {% for quiz in recent_quizzes %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">{{ quiz.get('quiz_name', 'Quiz #' ~ loop.index) if quiz is mapping else 'Quiz #' ~ loop.index }}</h6>
+                            <small class="text-muted">{{ (quiz.get('timestamp', '') or '')[:10] if quiz is mapping else '' }}</small>
+                        </div>
+                        {% set qs = quiz.get('score', 0) if quiz is mapping else 0 %}
+                        <span class="badge bg-{{ 'success' if qs >= 70 else 'warning' if qs >= 50 else 'danger' }} rounded-pill">
+                            {{ "%.1f"|format(qs) }}%
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-inbox fs-1"></i>
+                    <p class="mt-2">No quizzes taken yet. Start learning!</p>
+                    <a href="{{ url_for('quiz.index') }}" class="btn btn-primary">
+                        <i class="bi bi-play-circle"></i> Take a Quiz
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Weak Concepts -->
+    <div class="col-lg-5 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle text-warning"></i> Concepts to Review</h5>
+                <a href="{{ url_for('dashboard.progress') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if weak_concepts %}
+                {% for concept, score in weak_concepts %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>{{ concept }}</span>
+                        <span class="text-muted">{{ "%.0f"|format(score * 100) }}%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-{{ 'danger' if score < 0.3 else 'warning' }}" 
+                             role="progressbar" 
+                             style="width: {{ score * 100 }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-check-circle fs-1 text-success"></i>
+                    <p class="mt-2">Great job! No weak concepts identified.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-lightning"></i> Quick Actions</h5>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="{{ url_for('quiz.find_quiz') }}" class="btn btn-success">
+                        <i class="bi bi-search"></i> Find Quiz by Code
+                    </a>
+                    <a href="{{ url_for('quiz.index') }}" class="btn btn-primary">
+                        <i class="bi bi-play-circle"></i> Take Quiz
+                    </a>
+                    <a href="{{ url_for('instructor.upload_document') }}" class="btn btn-info">
+                        <i class="bi bi-plus-circle"></i> Create Quiz
+                    </a>
+                    <a href="{{ url_for('dashboard.progress') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-bar-chart"></i> View Progress
+                    </a>
+                    <a href="{{ url_for('dashboard.knowledge_graph') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-diagram-3"></i> Knowledge Graph
+                    </a>
+                    <a href="{{ url_for('quiz.history') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-clock-history"></i> Quiz History
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

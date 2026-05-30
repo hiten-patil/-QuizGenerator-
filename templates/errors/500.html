@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Server Error - Adaptive Quiz Generator{% endblock %}
+
+{% block content %}
+<div class="row min-vh-50 align-items-center justify-content-center py-5">
+    <div class="col-md-6 text-center">
+        <h1 class="display-1 fw-bold text-danger">500</h1>
+        <h2 class="mb-3">Internal Server Error</h2>
+        <p class="text-muted mb-4">
+            Something went wrong on our end. Please try again later or contact support if the problem persists.
+        </p>
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                <i class="bi bi-house"></i> Go Home
+            </a>
+            <button onclick="location.reload()" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-clockwise"></i> Retry
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

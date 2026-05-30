@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}About - Adaptive Quiz Generator{% endblock %}
+
+{% block content %}
+<div class="row mb-5">
+    <div class="col-lg-8 mx-auto text-center">
+        <h1 class="display-5 fw-bold"><i class="bi bi-lightbulb text-warning"></i> About This Project</h1>
+        <p class="lead text-muted">
+            An AI-powered adaptive quiz generation system for personalized learning
+        </p>
+    </div>
+</div>
+
+<!-- Project Overview -->
+<div class="row mb-5">
+    <div class="col-lg-10 mx-auto">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <h3><i class="bi bi-info-circle text-primary"></i> Project Overview</h3>
+                <p>
+                    This <strong>Adaptive AI Quiz Generator</strong> takes lecture notes (PDF/Text) as input, 
+                    extracts key concepts, constructs a <strong>Concept Knowledge Graph</strong>, and generates 
+                    quizzes in multiple formats (MCQ, True/False, Short Answer).
+                </p>
+                <p>
+                    Unlike standard quiz generation tools, our system personalizes question selection using a 
+                    reinforcement learning strategy based on <strong>Multi-Armed Bandits (MAB)</strong>, 
+                    balancing exploration and exploitation to target weak concepts while maintaining topic coverage.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Key Innovation -->
+<div class="row mb-5">
+    <div class="col-lg-10 mx-auto">
+        <h3 class="text-center mb-4">Key Innovation</h3>
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card h-100 border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-diagram-3"></i> Concept Knowledge Graph</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>Concepts extracted from lecture notes are structured into a knowledge graph using:</p>
+                        <ul>
+                            <li><strong>TF-IDF & RAKE:</strong> Statistical keyword extraction</li>
+                            <li><strong>KeyBERT:</strong> Semantic keyphrase extraction</li>
+                            <li><strong>spaCy NER:</strong> Named entity recognition</li>
+                            <li><strong>SBERT:</strong> Semantic similarity for edge creation</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100 border-success">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-shuffle"></i> Multi-Armed Bandit Personalization</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>Adaptive question selection using bandit algorithms:</p>
+                        <ul>
+                            <li><strong>ε-Greedy:</strong> Balance random exploration with exploitation</li>
+                            <li><strong>UCB1:</strong> Upper Confidence Bound for optimism</li>
+                            <li><strong>Thompson Sampling:</strong> Bayesian approach (default)</li>
+                        </ul>
+                        <p class="text-muted small mb-0">Targets weak concepts while maintaining coverage</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Architecture -->
+<div class="row mb-5">
+    <div class="col-lg-10 mx-auto">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h4 class="mb-0"><i class="bi bi-cpu"></i> System Architecture</h4>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-2">
+                        <div class="bg-light rounded p-3 mb-2">
+                            <i class="bi bi-file-earmark-pdf fs-2 text-danger"></i>
+                        </div>
+                        <small>Input: Lecture Notes</small>
+                    </div>
+                    <div class="col-md-1 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-arrow-right fs-4"></i>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="bg-light rounded p-3 mb-2">
+                            <i class="bi bi-braces fs-2 text-primary"></i>
+                        </div>
+                        <small>NLP Processing</small>
+                    </div>
+                    <div class="col-md-1 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-arrow-right fs-4"></i>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="bg-light rounded p-3 mb-2">
+                            <i class="bi bi-diagram-3 fs-2 text-info"></i>
+                        </div>
+                        <small>Knowledge Graph</small>
+                    </div>
+                    <div class="col-md-1 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-arrow-right fs-4"></i>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="bg-light rounded p-3 mb-2">
+                            <i class="bi bi-magic fs-2 text-warning"></i>
+                        </div>
+                        <small>Question Gen (T5)</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="row text-center mt-4">
+                    <div class="col-md-4">
+                        <div class="bg-success bg-opacity-10 rounded p-3">
+                            <i class="bi bi-person fs-2 text-success"></i>
+                            <h6>Student</h6>
+                            <small class="text-muted">Takes adaptive quizzes</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="bg-warning bg-opacity-10 rounded p-3">
+                            <i class="bi bi-shuffle fs-2 text-warning"></i>
+                            <h6>MAB Algorithm</h6>
+                            <small class="text-muted">Selects optimal questions</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="bg-info bg-opacity-10 rounded p-3">
+                            <i class="bi bi-graph-up fs-2 text-info"></i>
+                            <h6>Mastery Update</h6>
+                            <small class="text-muted">Tracks learning progress</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Technology Stack -->
+<div class="row mb-5">
+    <div class="col-lg-10 mx-auto">
+        <h3 class="text-center mb-4">Technology Stack</h3>
+        <div class="row g-3">
+            <div class="col-6 col-md-3">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <i class="bi bi-filetype-py fs-1 text-primary"></i>
+                        <h6 class="mt-2">Python + Flask</h6>
+                        <small class="text-muted">Backend</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <i class="bi bi-cloud fs-1 text-warning"></i>
+                        <h6 class="mt-2">Firebase</h6>
+                        <small class="text-muted">Database & Auth</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <i class="bi bi-robot fs-1 text-success"></i>
+                        <h6 class="mt-2">FLAN-T5</h6>
+                        <small class="text-muted">Question Generation</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <i class="bi bi-bootstrap fs-1 text-info"></i>
+                        <h6 class="mt-2">Bootstrap 5</h6>
+                        <small class="text-muted">Frontend UI</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Team -->
+<div class="row mb-5">
+    <div class="col-lg-10 mx-auto">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                <h4><i class="bi bi-people"></i> Project Team</h4>
+                <p class="text-muted mb-3">Introduction to AI - Group Project</p>
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    <span class="badge bg-primary fs-6">Krishal Modi - 110206943</span>
+                    <span class="badge bg-primary fs-6">Kothuru Monika - 110212390</span>
+                    <span class="badge bg-primary fs-6">Hiten Patil - 110210987</span>
+                    <span class="badge bg-primary fs-6">Krish Thakkar - 110204274</span>
+                    <span class="badge bg-primary fs-6">Prabhjot Singh - 110195328</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Research Foundation -->
+<div class="row">
+    <div class="col-lg-10 mx-auto">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h4 class="mb-0"><i class="bi bi-journal-text"></i> Research Foundation</h4>
+            </div>
+            <div class="card-body">
+                <ol class="mb-0">
+                    <li class="mb-2">
+                        G. Kurdi et al., "A Systematic Review of Automatic Question Generation for Educational Purposes," 
+                        <em>IJAIED</em>, 2020.
+                    </li>
+                    <li class="mb-2">
+                        L. Pan et al., "Improving Question Generation with Transformer-Based Models," 
+                        <em>Proc. ACL</em>, 2019.
+                    </li>
+                    <li class="mb-2">
+                        T. Alsubait et al., "Automatic Generation of Educational Questions from Ontologies," 
+                        <em>Journal of Web Semantics</em>, 2016.
+                    </li>
+                    <li class="mb-2">
+                        T. Gervet et al., "When is Deep Learning the Best Approach to Knowledge Tracing?," 
+                        <em>JEDM</em>, 2020.
+                    </li>
+                    <li>
+                        P. Auer et al., "Finite-time Analysis of the Multiarmed Bandit Problem," 
+                        <em>Machine Learning</em>, 2002.
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}{{ quiz.name or quiz.get('name', 'Quiz') }} - Adaptive Quiz Generator{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('instructor.index') }}">Instructor</a></li>
+                <li class="breadcrumb-item active">{{ quiz.name or quiz.get('name', 'Quiz') }}</li>
+            </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+            <h2><i class="bi bi-file-earmark-check text-primary"></i> {{ quiz.name or quiz.get('name', 'Quiz') }}</h2>
+            <div>
+                <a href="{{ url_for('instructor.edit_quiz', quiz_id=quiz.id) }}" class="btn btn-outline-primary">
+                    <i class="bi bi-pencil"></i> Edit Quiz
+                </a>
+                <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteQuizModal">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Quiz Details -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Quiz Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Created:</strong> {{ quiz.created_at[:10] if quiz.created_at else 'N/A' }}</p>
+                        <p><strong>Questions:</strong> {{ questions | length }}</p>
+                        <p><strong>Difficulty:</strong> <span class="badge bg-{{ 'success' if quiz.difficulty == 'easy' else 'warning' if quiz.difficulty == 'medium' else 'danger' if quiz.difficulty == 'hard' else 'secondary' }}">{{ quiz.difficulty | capitalize if quiz.difficulty else 'Mixed' }}</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Adaptive:</strong> 
+                            <span class="badge bg-{{ 'success' if quiz.is_adaptive else 'secondary' }}">
+                                {{ 'Yes' if quiz.is_adaptive else 'No' }}
+                            </span>
+                        </p>
+                        <p><strong>Password Protected:</strong> {{ 'Yes' if quiz.is_password_protected else 'No' }}</p>
+                        <p><strong>Attempts:</strong> {{ stats.total_attempts or 0 }}</p>
+                    </div>
+                </div>
+                {% if quiz.description %}
+                <hr>
+                <p class="mb-0"><strong>Description:</strong> {{ quiz.description }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Share Link -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-share"></i> Share Quiz</h5>
+            </div>
+            <div class="card-body">
+                <!-- Quiz Code -->
+                <div class="mb-3">
+                    <label class="form-label"><strong>Quiz Code (Share This)</strong></label>
+                    <div class="input-group">
+                        <input type="text" class="form-control form-control-lg" id="quizCode" 
+                               value="{{ quiz.quiz_code or 'N/A' }}" 
+                               readonly
+                               style="font-family: 'Courier New', monospace; font-weight: bold; letter-spacing: 2px; font-size: 1.1em;">
+                        <button class="btn btn-success" onclick="copyQuizCode()">
+                            <i class="bi bi-clipboard"></i> Copy Code
+                        </button>
+                    </div>
+                    <small class="text-muted d-block mt-2">Students can use this 16-digit code to find and access your quiz</small>
+                </div>
+
+                <hr>
+
+                <!-- Share Link (Optional) -->
+                <label class="form-label"><strong>Direct Link (Alternative)</strong></label>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="shareLink" 
+                           value="{{ url_for('quiz.take_quiz', quiz_id=quiz.id, _external=True) }}" readonly>
+                    <button class="btn btn-outline-primary" onclick="copyShareLink()">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+                </div>
+                {% if quiz.password %}
+                <small class="text-muted">Password: <code>{{ quiz.password }}</code></small>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Questions List -->
+        <div class="card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-check"></i> Questions</h5>
+                <span class="badge bg-primary">{{ quiz.questions | length }} questions</span>
+            </div>
+            <div class="card-body">
+                <div class="accordion" id="questionsAccordion">
+                    {% for question in quiz.questions %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" 
+                                    data-bs-toggle="collapse" data-bs-target="#question{{ loop.index }}">
+                                <span class="badge bg-{{ 'info' if question.type == 'mcq' else 'warning' if question.type == 'tf' else 'secondary' }} me-2">
+                                    {{ question.type | upper }}
+                                </span>
+                                <span class="text-truncate" style="max-width: 400px;">
+                                    Q{{ loop.index }}: {{ question.question }}
+                                </span>
+                            </button>
+                        </h2>
+                        <div id="question{{ loop.index }}" class="accordion-collapse collapse" 
+                             data-bs-parent="#questionsAccordion">
+                            <div class="accordion-body">
+                                <p><strong>Question:</strong> {{ question.question }}</p>
+                                
+                                {% if question.type == 'mcq' %}
+                                <p><strong>Options:</strong></p>
+                                <ul class="list-group list-group-flush mb-3">
+                                    {% set opt_labels = ['A', 'B', 'C', 'D'] %}
+                                    {% for option in question.options %}
+                                    {% set lbl = opt_labels[loop.index0] if loop.index0 < 4 else '' %}
+                                    <li class="list-group-item {{ 'list-group-item-success' if lbl == question.correct_answer else '' }}">
+                                        <strong>{{ lbl }}.</strong> {{ option }}
+                                        {% if lbl == question.correct_answer %}
+                                        <i class="bi bi-check-circle-fill text-success float-end"></i>
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% elif question.type == 'tf' %}
+                                <p><strong>Correct Answer:</strong> 
+                                    <span class="badge bg-{{ 'success' if question.correct_answer else 'danger' }}">
+                                        {{ 'True' if question.correct_answer else 'False' }}
+                                    </span>
+                                </p>
+                                {% else %}
+                                <p><strong>Expected Answer:</strong> {{ question.correct_answer }}</p>
+                                {% endif %}
+                                
+                                <p class="mb-1"><strong>Concept:</strong> 
+                                    <span class="badge bg-secondary">{{ question.concept }}</span>
+                                </p>
+                                <p class="mb-0"><strong>Difficulty:</strong> 
+                                    <span class="badge bg-{{ 'success' if question.difficulty == 'easy' else 'warning' if question.difficulty == 'medium' else 'danger' }}">
+                                        {{ question.difficulty | title }}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Quick Stats -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Performance Stats</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="d-flex justify-content-between mb-2">
+                        <span>Total Attempts</span>
+                        <strong>{{ stats.total_attempts }}</strong>
+                    </li>
+                    <li class="d-flex justify-content-between mb-2">
+                        <span>Average Score</span>
+                        <strong>{{ stats.avg_score }}%</strong>
+                    </li>
+                    <li class="d-flex justify-content-between mb-2">
+                        <span>Highest Score</span>
+                        <strong>{{ stats.max_score }}%</strong>
+                    </li>
+                    <li class="d-flex justify-content-between mb-2">
+                        <span>Lowest Score</span>
+                        <strong>{{ stats.min_score }}%</strong>
+                    </li>
+                    <li class="d-flex justify-content-between">
+                        <span>Avg. Time</span>
+                        <strong>{{ stats.avg_time }}</strong>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Question Type Distribution -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Question Types</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="questionTypeChart" height="200"></canvas>
+            </div>
+        </div>
+        
+        <!-- Recent Attempts -->
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Attempts</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for attempt in recent_attempts %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ attempt.user_name }}</strong>
+                            <small class="text-muted d-block">{{ attempt.date }}</small>
+                        </div>
+                        <span class="badge bg-{{ 'success' if attempt.score >= 70 else 'warning' }}">
+                            {{ attempt.score }}%
+                        </span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted text-center">No attempts yet</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteQuizModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Delete Quiz</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete "<strong>{{ quiz.name or quiz.get('name', 'this quiz') }}</strong>"?</p>
+                <p class="text-danger">This action cannot be undone. All questions will be deleted, but student attempt history will be preserved.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('instructor.delete_quiz', quiz_id=quiz.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function copyShareLink() {
+    const input = document.getElementById('shareLink');
+    input.select();
+    document.execCommand('copy');
+    
+    const btn = event.target.closest('button');
+    btn.innerHTML = '<i class="bi bi-check"></i> Copied!';
+    setTimeout(() => {
+        btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy';
+    }, 2000);
+}
+
+function copyQuizCode() {
+    const input = document.getElementById('quizCode');
+    input.select();
+    document.execCommand('copy');
+    
+    const btn = event.target.closest('button');
+    btn.innerHTML = '<i class="bi bi-check-circle"></i> Code Copied!';
+    setTimeout(() => {
+        btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy Code';
+    }, 2000);
+}
+
+// Question type chart
+const typeData = {{ question_type_counts | tojson }};
+
+new Chart(document.getElementById('questionTypeChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Multiple Choice', 'True/False', 'Short Answer'],
+        datasets: [{
+            data: [typeData.mcq || 0, typeData.tf || 0, typeData.short || 0],
+            backgroundColor: ['#2563eb', '#ca8a04', '#94a3b8']
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

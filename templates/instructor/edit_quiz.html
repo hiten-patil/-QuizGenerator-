@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Quiz: {{ quiz.title }} - Adaptive Quiz Generator{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('instructor.index') }}">Instructor</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('instructor.view_quiz', quiz_id=quiz.id) }}">{{ quiz.title }}</a></li>
+                <li class="breadcrumb-item active">Edit</li>
+            </ol>
+        </nav>
+        <h2><i class="bi bi-pencil-square text-primary"></i> Edit Quiz</h2>
+    </div>
+</div>
+
+<form id="editQuizForm" method="POST">
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Basic Info -->
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Basic Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Quiz Title *</label>
+                        <input type="text" class="form-control" id="title" name="title" 
+                               value="{{ quiz.title }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" 
+                                  rows="3">{{ quiz.description }}</textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="time_limit" class="form-label">Time Limit (minutes)</label>
+                                <input type="number" class="form-control" id="time_limit" name="time_limit" 
+                                       value="{{ quiz.time_limit }}" min="0">
+                                <small class="text-muted">0 = No time limit</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password (optional)</label>
+                                <input type="text" class="form-control" id="password" name="password" 
+                                       value="{{ quiz.password }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                               {{ 'checked' if quiz.is_active else '' }}>
+                        <label class="form-check-label" for="is_active">
+                            Quiz is active (students can take it)
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="shuffle_questions" name="shuffle_questions" 
+                               {{ 'checked' if quiz.shuffle_questions else '' }}>
+                        <label class="form-check-label" for="shuffle_questions">
+                            Shuffle question order
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Questions -->
+            <div class="card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Questions</h5>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="addQuestion()">
+                        <i class="bi bi-plus-lg"></i> Add Question
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="questionsContainer">
+                        {% for question in quiz.questions %}
+                        <div class="question-item card mb-3" data-index="{{ loop.index0 }}">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <span class="question-number">Question {{ loop.index }}</span>
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="moveQuestion(this, -1)">
+                                        <i class="bi bi-arrow-up"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="moveQuestion(this, 1)">
+                                        <i class="bi bi-arrow-down"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeQuestion(this)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Question Type</label>
+                                        <select class="form-select question-type" name="questions[{{ loop.index0 }}][type]" 
+                                                onchange="updateQuestionType(this)">
+                                            <option value="mcq" {{ 'selected' if question.type == 'mcq' else '' }}>Multiple Choice</option>
+                                            <option value="tf" {{ 'selected' if question.type == 'tf' else '' }}>True/False</option>
+                                            <option value="short" {{ 'selected' if question.type == 'short' else '' }}>Short Answer</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Concept</label>
+                                        <input type="text" class="form-control" name="questions[{{ loop.index0 }}][concept]" 
+                                               value="{{ question.concept }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Difficulty</label>
+                                        <select class="form-select" name="questions[{{ loop.index0 }}][difficulty]">
+                                            <option value="easy" {{ 'selected' if question.difficulty == 'easy' else '' }}>Easy</option>
+                                            <option value="medium" {{ 'selected' if question.difficulty == 'medium' else '' }}>Medium</option>
+                                            <option value="hard" {{ 'selected' if question.difficulty == 'hard' else '' }}>Hard</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Question Text</label>
+                                    <textarea class="form-control" name="questions[{{ loop.index0 }}][question]" 
+                                              rows="2" required>{{ question.question }}</textarea>
+                                </div>
+                                
+                                <div class="options-container" style="{{ 'display:none;' if question.type != 'mcq' else '' }}">
+                                    <label class="form-label">Options (mark the correct answer)</label>
+                                    {% set labels = ['A', 'B', 'C', 'D'] %}
+                                    {% for option in question.options %}
+                                    {% set opt_letter = labels[loop.index0] if loop.index0 < 4 else '' %}
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text fw-bold">{{ opt_letter }}</span>
+                                        <div class="input-group-text">
+                                            <input class="form-check-input mt-0" type="radio" 
+                                                   name="questions[{{ loop.parent.loop.index0 }}][correct_option]" 
+                                                   value="{{ loop.index0 }}"
+                                                   {{ 'checked' if opt_letter == question.correct_answer else '' }}>
+                                        </div>
+                                        <input type="text" class="form-control" 
+                                               name="questions[{{ loop.parent.loop.index0 }}][options][]" 
+                                               value="{{ option }}">
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                <div class="tf-container" style="{{ 'display:none;' if question.type != 'tf' else '' }}">
+                                    <label class="form-label">Correct Answer</label>
+                                    <div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" 
+                                                   name="questions[{{ loop.index0 }}][tf_answer]" 
+                                                   value="true" {{ 'checked' if question.correct_answer == true else '' }}>
+                                            <label class="form-check-label">True</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" 
+                                                   name="questions[{{ loop.index0 }}][tf_answer]" 
+                                                   value="false" {{ 'checked' if question.correct_answer == false else '' }}>
+                                            <label class="form-check-label">False</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="short-container" style="{{ 'display:none;' if question.type != 'short' else '' }}">
+                                    <label class="form-label">Expected Answer</label>
+                                    <input type="text" class="form-control" 
+                                           name="questions[{{ loop.index0 }}][short_answer]" 
+                                           value="{{ question.correct_answer if question.type == 'short' else '' }}">
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Actions Sidebar -->
+            <div class="card mb-4 sticky-top" style="top: 80px;">
+                <div class="card-body">
+                    <button type="submit" class="btn btn-primary w-100 mb-2">
+                        <i class="bi bi-check-lg"></i> Save Changes
+                    </button>
+                    <a href="{{ url_for('instructor.view_quiz', quiz_id=quiz.id) }}" class="btn btn-outline-secondary w-100 mb-2">
+                        <i class="bi bi-x-lg"></i> Cancel
+                    </a>
+                    <hr>
+                    <p class="text-muted small mb-0">
+                        <strong>Questions:</strong> <span id="questionCount">{{ quiz.questions | length }}</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Question Template (hidden) -->
+<template id="questionTemplate">
+    <div class="question-item card mb-3">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <span class="question-number">Question</span>
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="moveQuestion(this, -1)">
+                    <i class="bi bi-arrow-up"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="moveQuestion(this, 1)">
+                    <i class="bi bi-arrow-down"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeQuestion(this)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Question Type</label>
+                    <select class="form-select question-type" onchange="updateQuestionType(this)">
+                        <option value="mcq">Multiple Choice</option>
+                        <option value="tf">True/False</option>
+                        <option value="short">Short Answer</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Concept</label>
+                    <input type="text" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Difficulty</label>
+                    <select class="form-select">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Question Text</label>
+                <textarea class="form-control" rows="2" required></textarea>
+            </div>
+            
+            <div class="options-container">
+                <label class="form-label">Options (mark the correct answer)</label>
+                <div class="input-group mb-2">
+                    <div class="input-group-text">
+                        <input class="form-check-input mt-0" type="radio" checked>
+                    </div>
+                    <input type="text" class="form-control" placeholder="Option A">
+                </div>
+                <div class="input-group mb-2">
+                    <div class="input-group-text">
+                        <input class="form-check-input mt-0" type="radio">
+                    </div>
+                    <input type="text" class="form-control" placeholder="Option B">
+                </div>
+                <div class="input-group mb-2">
+                    <div class="input-group-text">
+                        <input class="form-check-input mt-0" type="radio">
+                    </div>
+                    <input type="text" class="form-control" placeholder="Option C">
+                </div>
+                <div class="input-group mb-2">
+                    <div class="input-group-text">
+                        <input class="form-check-input mt-0" type="radio">
+                    </div>
+                    <input type="text" class="form-control" placeholder="Option D">
+                </div>
+            </div>
+            
+            <div class="tf-container" style="display:none;">
+                <label class="form-label">Correct Answer</label>
+                <div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" value="true" checked>
+                        <label class="form-check-label">True</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" value="false">
+                        <label class="form-check-label">False</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="short-container" style="display:none;">
+                <label class="form-label">Expected Answer</label>
+                <input type="text" class="form-control">
+            </div>
+        </div>
+    </div>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function addQuestion() {
+    const template = document.getElementById('questionTemplate');
+    const container = document.getElementById('questionsContainer');
+    const clone = template.content.cloneNode(true);
+    container.appendChild(clone);
+    updateQuestionNumbers();
+}
+
+function removeQuestion(btn) {
+    if (!confirm('Remove this question?')) return;
+    const item = btn.closest('.question-item');
+    item.remove();
+    updateQuestionNumbers();
+}
+
+function moveQuestion(btn, direction) {
+    const item = btn.closest('.question-item');
+    const container = item.parentElement;
+    const items = Array.from(container.children);
+    const index = items.indexOf(item);
+    
+    if (direction === -1 && index > 0) {
+        container.insertBefore(item, items[index - 1]);
+    } else if (direction === 1 && index < items.length - 1) {
+        container.insertBefore(items[index + 1], item);
+    }
+    updateQuestionNumbers();
+}
+
+function updateQuestionNumbers() {
+    const items = document.querySelectorAll('.question-item');
+    items.forEach((item, idx) => {
+        item.querySelector('.question-number').textContent = `Question ${idx + 1}`;
+        item.dataset.index = idx;
+    });
+    document.getElementById('questionCount').textContent = items.length;
+}
+
+function updateQuestionType(select) {
+    const card = select.closest('.question-item');
+    const type = select.value;
+    
+    card.querySelector('.options-container').style.display = type === 'mcq' ? '' : 'none';
+    card.querySelector('.tf-container').style.display = type === 'tf' ? '' : 'none';
+    card.querySelector('.short-container').style.display = type === 'short' ? '' : 'none';
+}
+
+// Form submission
+document.getElementById('editQuizForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const questions = [];
+    document.querySelectorAll('.question-item').forEach((item, idx) => {
+        const type = item.querySelector('.question-type').value;
+        const q = {
+            type: type,
+            question: item.querySelector('textarea').value,
+            concept: item.querySelectorAll('input[type="text"]')[0].value,
+            difficulty: item.querySelectorAll('select')[1].value
+        };
+        
+        if (type === 'mcq') {
+            const options = [];
+            let correctIdx = 0;
+            item.querySelectorAll('.options-container .input-group').forEach((og, i) => {
+                options.push(og.querySelector('input[type="text"]').value);
+                if (og.querySelector('input[type="radio"]').checked) correctIdx = i;
+            });
+            q.options = options;
+            q.correct_answer = options[correctIdx];
+        } else if (type === 'tf') {
+            q.correct_answer = item.querySelector('.tf-container input:checked').value === 'true';
+        } else {
+            q.correct_answer = item.querySelector('.short-container input').value;
+        }
+        
+        questions.push(q);
+    });
+    
+    const data = {
+        title: document.getElementById('title').value,
+        description: document.getElementById('description').value,
+        time_limit: parseInt(document.getElementById('time_limit').value) || 0,
+        password: document.getElementById('password').value,
+        is_active: document.getElementById('is_active').checked,
+        shuffle_questions: document.getElementById('shuffle_questions').checked,
+        questions: questions
+    };
+    
+    fetch('{{ url_for("instructor.edit_quiz", quiz_id=quiz.id) }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = '{{ url_for("instructor.view_quiz", quiz_id=quiz.id) }}';
+        } else {
+            alert(data.error || 'Failed to save');
+        }
+    })
+    .catch(err => alert('Error saving quiz'));
+});
+</script>
+{% endblock %}

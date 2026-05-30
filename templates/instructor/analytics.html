@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - Adaptive Quiz Generator{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-graph-up text-primary"></i> Analytics Dashboard</h2>
+        <p class="text-muted">Insights into student performance and quiz effectiveness</p>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <select class="form-select" id="filterQuiz">
+            <option value="">All Quizzes</option>
+            {% for quiz in quizzes %}
+            <option value="{{ quiz.id }}">{{ quiz.title }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="filterDateRange">
+            <option value="7">Last 7 Days</option>
+            <option value="30" selected>Last 30 Days</option>
+            <option value="90">Last 3 Months</option>
+            <option value="">All Time</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <button class="btn btn-outline-primary" onclick="exportAnalytics()">
+            <i class="bi bi-download"></i> Export Report
+        </button>
+    </div>
+</div>
+
+<!-- Overview Stats -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ stats.total_students }}</h3>
+                        <small>Total Students</small>
+                    </div>
+                    <i class="bi bi-people fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ stats.total_attempts }}</h3>
+                        <small>Quiz Attempts</small>
+                    </div>
+                    <i class="bi bi-clipboard-check fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ stats.avg_score }}%</h3>
+                        <small>Average Score</small>
+                    </div>
+                    <i class="bi bi-bullseye fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ stats.completion_rate }}%</h3>
+                        <small>Completion Rate</small>
+                    </div>
+                    <i class="bi bi-check-circle fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-graph-up-arrow"></i> Performance Over Time</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="performanceChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Score Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="scoreDistribution" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Concept Analysis -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Concept Difficulty Analysis</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="conceptDifficultyChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Challenging Concepts</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Concept</th>
+                            <th>Attempts</th>
+                            <th>Avg. Score</th>
+                            <th>Difficulty</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for concept in challenging_concepts %}
+                        <tr>
+                            <td>{{ concept.name }}</td>
+                            <td>{{ concept.attempts }}</td>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar bg-{{ 'success' if concept.avg_score >= 70 else 'warning' if concept.avg_score >= 50 else 'danger' }}" 
+                                         style="width: {{ concept.avg_score }}%">
+                                        {{ concept.avg_score }}%
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if concept.difficulty == 'easy' else 'warning' if concept.difficulty == 'medium' else 'danger' }}">
+                                    {{ concept.difficulty | title }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">No data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Question Analysis -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-check"></i> Question Performance</h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary active" data-sort="difficulty">
+                        Sort by Difficulty
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" data-sort="accuracy">
+                        Sort by Accuracy
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="questionTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Question</th>
+                                <th>Type</th>
+                                <th>Attempts</th>
+                                <th>Accuracy</th>
+                                <th>Avg. Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for q in question_stats %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td class="text-truncate" style="max-width: 300px;">{{ q.question }}</td>
+                                <td><span class="badge bg-info">{{ q.type | upper }}</span></td>
+                                <td>{{ q.attempts }}</td>
+                                <td>
+                                    <div class="progress" style="height: 8px; width: 100px;">
+                                        <div class="progress-bar bg-{{ 'success' if q.accuracy >= 70 else 'warning' if q.accuracy >= 50 else 'danger' }}" 
+                                             style="width: {{ q.accuracy }}%"></div>
+                                    </div>
+                                    <small>{{ q.accuracy }}%</small>
+                                </td>
+                                <td>{{ q.avg_time }}s</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">No question data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Student Performance -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-people"></i> Student Performance</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Quizzes Taken</th>
+                                <th>Avg. Score</th>
+                                <th>Best Score</th>
+                                <th>Total Time</th>
+                                <th>Last Active</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in student_stats %}
+                            <tr>
+                                <td>
+                                    <strong>{{ student.name }}</strong>
+                                    <small class="text-muted d-block">{{ student.email }}</small>
+                                </td>
+                                <td>{{ student.quiz_count }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if student.avg_score >= 70 else 'warning' if student.avg_score >= 50 else 'danger' }} fs-6">
+                                        {{ student.avg_score }}%
+                                    </span>
+                                </td>
+                                <td>{{ student.best_score }}%</td>
+                                <td>{{ student.total_time }}</td>
+                                <td>{{ student.last_active }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">No student data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Performance Over Time Chart
+const perfLabels = {{ performance_labels | tojson | default('[]') }};
+const perfData = {{ performance_data | tojson | default('[]') }};
+const attemptsData = {{ attempts_data | tojson | default('[]') }};
+
+new Chart(document.getElementById('performanceChart'), {
+    type: 'line',
+    data: {
+        labels: perfLabels,
+        datasets: [{
+            label: 'Average Score',
+            data: perfData,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            fill: true,
+            tension: 0.3,
+            yAxisID: 'y'
+        }, {
+            label: 'Attempts',
+            data: attemptsData,
+            borderColor: '#16a34a',
+            backgroundColor: 'rgba(22, 163, 74, 0.1)',
+            fill: true,
+            tension: 0.3,
+            yAxisID: 'y1'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                type: 'linear',
+                position: 'left',
+                beginAtZero: true,
+                max: 100,
+                title: { display: true, text: 'Score (%)' }
+            },
+            y1: {
+                type: 'linear',
+                position: 'right',
+                beginAtZero: true,
+                grid: { drawOnChartArea: false },
+                title: { display: true, text: 'Attempts' }
+            }
+        }
+    }
+});
+
+// Score Distribution Chart
+const scoreDistData = {{ score_distribution | tojson | default('[0,0,0,0,0]') }};
+
+new Chart(document.getElementById('scoreDistribution'), {
+    type: 'doughnut',
+    data: {
+        labels: ['0-20%', '21-40%', '41-60%', '61-80%', '81-100%'],
+        datasets: [{
+            data: scoreDistData,
+            backgroundColor: ['#dc2626', '#ea580c', '#ca8a04', '#2563eb', '#16a34a']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' }
+        }
+    }
+});
+
+// Concept Difficulty Chart
+const conceptLabels = {{ concept_labels | tojson | default('[]') }};
+const conceptScores = {{ concept_scores | tojson | default('[]') }};
+
+new Chart(document.getElementById('conceptDifficultyChart'), {
+    type: 'bar',
+    data: {
+        labels: conceptLabels,
+        datasets: [{
+            label: 'Average Score (%)',
+            data: conceptScores,
+            backgroundColor: conceptScores.map(s => s >= 70 ? '#16a34a' : s >= 50 ? '#ca8a04' : '#dc2626'),
+            borderRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        scales: {
+            x: { beginAtZero: true, max: 100 }
+        },
+        plugins: {
+            legend: { display: false }
+        }
+    }
+});
+
+// Filter handlers
+document.getElementById('filterQuiz').addEventListener('change', refreshAnalytics);
+document.getElementById('filterDateRange').addEventListener('change', refreshAnalytics);
+
+function refreshAnalytics() {
+    const quizId = document.getElementById('filterQuiz').value;
+    const dateRange = document.getElementById('filterDateRange').value;
+    window.location.href = `?quiz_id=${quizId}&days=${dateRange}`;
+}
+
+function exportAnalytics() {
+    const quizId = document.getElementById('filterQuiz').value;
+    const dateRange = document.getElementById('filterDateRange').value;
+    window.location.href = `/api/analytics/export?quiz_id=${quizId}&days=${dateRange}`;
+}
+</script>
+{% endblock %}

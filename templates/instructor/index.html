@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Instructor Dashboard - Adaptive Quiz Generator{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h1 class="fw-bold"><i class="bi bi-pencil-square" style="color:var(--primary)"></i> Create & Manage Quizzes</h1>
+        <p class="text-muted mb-0">Upload documents, create quizzes, and share them with others using unique codes</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('instructor.upload_document') }}" class="btn btn-primary">
+            <i class="bi bi-cloud-upload"></i> Upload Document
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Documents -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> My Documents</h5>
+                <span class="badge bg-primary">{{ documents|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if documents %}
+                <div class="list-group list-group-flush">
+                    {% for doc in documents %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">{{ doc.filename }}</h6>
+                            <small class="text-muted">
+                                {{ doc.concepts|length if doc.concepts else 0 }} concepts
+                            </small>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('instructor.view_document', doc_id=doc.id) }}" 
+                               class="btn btn-sm btn-outline-primary me-1">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{{ url_for('instructor.generate_quiz', doc_id=doc.id) }}" 
+                               class="btn btn-sm btn-success">
+                                <i class="bi bi-plus"></i> Quiz
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-cloud-upload fs-1"></i>
+                    <p class="mt-2">No documents uploaded yet</p>
+                    <a href="{{ url_for('instructor.upload_document') }}" class="btn btn-primary">
+                        Upload Your First Document
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quizzes -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-question-circle"></i> My Quizzes</h5>
+                <span class="badge bg-success">{{ quizzes|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if quizzes %}
+                <div class="list-group list-group-flush">
+                    {% for quiz in quizzes %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">{{ quiz.name }}</h6>
+                            <small class="text-muted">
+                                {{ quiz.num_questions }} questions
+                                {% if quiz.is_password_protected %}
+                                <i class="bi bi-lock text-warning"></i>
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('instructor.view_quiz', quiz_id=quiz.id) }}" 
+                               class="btn btn-sm btn-outline-primary me-1">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{{ url_for('instructor.edit_quiz', quiz_id=quiz.id) }}" 
+                               class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-collection fs-1"></i>
+                    <p class="mt-2">No quizzes created yet</p>
+                    <p class="small">Upload a document first to generate quizzes</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Quick Stats</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h3 class="text-primary">{{ documents|length }}</h3>
+                        <p class="text-muted mb-0">Documents</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h3 class="text-success">{{ quizzes|length }}</h3>
+                        <p class="text-muted mb-0">Quizzes</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h3 class="text-info">-</h3>
+                        <p class="text-muted mb-0">Total Attempts</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h3 class="text-warning">-</h3>
+                        <p class="text-muted mb-0">Avg Score</p>
+                    </div>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('instructor.analytics') }}" class="btn btn-outline-primary">
+                        View Detailed Analytics <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

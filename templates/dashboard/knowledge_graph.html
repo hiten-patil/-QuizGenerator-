@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}Knowledge Graph - Adaptive Quiz Generator{% endblock %}
+
+{% block styles %}
+<style>
+    #knowledge-graph-container {
+        width: 100%;
+        height: 600px;
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        background: var(--gray-50);
+    }
+    .concept-info-panel {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-diagram-3 text-primary"></i> Knowledge Graph</h2>
+        <p class="text-muted">Visualize concept relationships extracted from your documents</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-filter"></i> Filter Documents</h6>
+            </div>
+            <div class="card-body">
+                <select class="form-select" id="documentFilter">
+                    <option value="all">All Documents</option>
+                    {% for doc in documents %}
+                    <option value="{{ doc.id }}">{{ doc.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-sliders"></i> Display Options</h6>
+            </div>
+            <div class="card-body">
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="showMastery" checked>
+                    <label class="form-check-label" for="showMastery">Show Mastery Colors</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="showLabels" checked>
+                    <label class="form-check-label" for="showLabels">Show Labels</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h6><i class="bi bi-info-circle"></i> Legend</h6>
+                <div class="d-flex gap-4 flex-wrap">
+                    <span><span class="badge bg-success">&nbsp;&nbsp;</span> Mastered (≥70%)</span>
+                    <span><span class="badge bg-warning">&nbsp;&nbsp;</span> Learning (40-69%)</span>
+                    <span><span class="badge bg-danger">&nbsp;&nbsp;</span> Needs Work (&lt;40%)</span>
+                    <span><span class="badge bg-secondary">&nbsp;&nbsp;</span> Not Assessed</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-9">
+        <div class="card">
+            <div class="card-body p-0">
+                <div id="knowledge-graph-container"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Concept Details</h6>
+            </div>
+            <div class="card-body concept-info-panel">
+                <div id="conceptDetails">
+                    <p class="text-muted text-center">Click on a concept node to view details</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-bar-chart"></i> Graph Statistics</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <strong>Nodes:</strong> 
+                        <span id="nodeCount">{{ graph_stats.nodes | default(0) }}</span>
+                    </li>
+                    <li class="mb-2">
+                        <strong>Edges:</strong> 
+                        <span id="edgeCount">{{ graph_stats.edges | default(0) }}</span>
+                    </li>
+                    <li class="mb-2">
+                        <strong>Avg. Connections:</strong> 
+                        <span id="avgConnections">{{ graph_stats.avg_degree | default(0) }}</span>
+                    </li>
+                    <li>
+                        <strong>Central Concept:</strong> 
+                        <span id="centralConcept">{{ graph_stats.central | default('N/A') }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-search"></i> Search Concept</h6>
+            </div>
+            <div class="card-body">
+                <input type="text" class="form-control" id="conceptSearch" placeholder="Search...">
+                <div id="searchResults" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<script>
+let network = null;
+let nodesData = [];
+let edgesData = [];
+
+// Initialize the knowledge graph
+async function initializeGraph(documentId = 'all') {
+    try {
+        const url = documentId === 'all' 
+            ? '/api/knowledge-graph'
+            : `/api/knowledge-graph?document_id=${documentId}`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.success) {
+            renderGraph(data.nodes, data.edges);
+            updateStats(data.stats);
+        } else {
+            document.getElementById('knowledge-graph-container').innerHTML = 
+                '<div class="p-4 text-center text-muted"><i class="bi bi-diagram-3 fs-1 d-block mb-2"></i>No knowledge graph available. Upload documents and generate a quiz first.</div>';
+        }
+    } catch (error) {
+        console.error('Error loading graph:', error);
+    }
+}
+
+function renderGraph(nodes, edges) {
+    nodesData = nodes.map(node => ({
+        id: node.id,
+        label: node.label,
+        title: `${node.label}\nMastery: ${node.mastery || 0}%`,
+        color: getNodeColor(node.mastery),
+        font: { size: 14 }
+    }));
+    
+    edgesData = edges.map(edge => ({
+        from: edge.source,
+        to: edge.target,
+        value: edge.weight || 1,
+        title: `Similarity: ${(edge.weight * 100).toFixed(0)}%`
+    }));
+    
+    const container = document.getElementById('knowledge-graph-container');
+    const data = {
+        nodes: new vis.DataSet(nodesData),
+        edges: new vis.DataSet(edgesData)
+    };
+    
+    const options = {
+        nodes: {
+            shape: 'dot',
+            size: 20,
+            borderWidth: 2,
+            shadow: true
+        },
+        edges: {
+            width: 1,
+            shadow: true
+        },
+        physics: {
+            stabilization: true,
+            barnesHut: {
+                gravitationalConstant: -5000,
+                springLength: 150
+            }
+        },
+        interaction: {
+            hover: true,
+            tooltipDelay: 200
+        }
+    };
+    
+    network = new vis.Network(container, data, options);
+    
+    // Node click handler
+    network.on('click', function(params) {
+        if (params.nodes.length > 0) {
+            const nodeId = params.nodes[0];
+            showConceptDetails(nodeId);
+        }
+    });
+}
+
+function getNodeColor(mastery) {
+    if (mastery === undefined || mastery === null) return '#94a3b8';
+    if (mastery >= 70) return '#16a34a';
+    if (mastery >= 40) return '#ca8a04';
+    return '#dc2626';
+}
+
+function updateStats(stats) {
+    document.getElementById('nodeCount').textContent = stats.nodes || 0;
+    document.getElementById('edgeCount').textContent = stats.edges || 0;
+    document.getElementById('avgConnections').textContent = (stats.avg_degree || 0).toFixed(1);
+    document.getElementById('centralConcept').textContent = stats.central || 'N/A';
+}
+
+function showConceptDetails(nodeId) {
+    const node = nodesData.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    // Find related concepts
+    const related = edgesData
+        .filter(e => e.from === nodeId || e.to === nodeId)
+        .map(e => e.from === nodeId ? e.to : e.from);
+    
+    const relatedLabels = related
+        .map(id => nodesData.find(n => n.id === id)?.label)
+        .filter(Boolean)
+        .slice(0, 5);
+    
+    document.getElementById('conceptDetails').innerHTML = `
+        <h6>${node.label}</h6>
+        <div class="mb-2">
+            <strong>Mastery:</strong>
+            <div class="progress" style="height: 8px;">
+                <div class="progress-bar bg-${node.color === '#16a34a' ? 'success' : node.color === '#ca8a04' ? 'warning' : 'danger'}" 
+                     style="width: ${node.mastery || 0}%"></div>
+            </div>
+            <small class="text-muted">${node.mastery || 0}%</small>
+        </div>
+        <div class="mb-2">
+            <strong>Connections:</strong> ${related.length}
+        </div>
+        <div>
+            <strong>Related Concepts:</strong>
+            <ul class="list-unstyled small">
+                ${relatedLabels.map(l => `<li>• ${l}</li>`).join('')}
+            </ul>
+        </div>
+        <a href="/quiz?concept=${encodeURIComponent(node.label)}" class="btn btn-sm btn-primary w-100">
+            <i class="bi bi-play-circle"></i> Practice This Concept
+        </a>
+    `;
+}
+
+// Search functionality
+document.getElementById('conceptSearch').addEventListener('input', function(e) {
+    const query = e.target.value.toLowerCase();
+    if (query.length < 2) {
+        document.getElementById('searchResults').innerHTML = '';
+        return;
+    }
+    
+    const matches = nodesData.filter(n => n.label.toLowerCase().includes(query)).slice(0, 5);
+    document.getElementById('searchResults').innerHTML = matches.map(n => `
+        <button class="btn btn-sm btn-outline-secondary w-100 mb-1 text-start" 
+                onclick="focusNode('${n.id}')">
+            ${n.label}
+        </button>
+    `).join('');
+});
+
+function focusNode(nodeId) {
+    if (network) {
+        network.selectNodes([nodeId]);
+        network.focus(nodeId, { scale: 1.5, animation: true });
+        showConceptDetails(nodeId);
+    }
+}
+
+// Filter handler
+document.getElementById('documentFilter').addEventListener('change', function(e) {
+    initializeGraph(e.target.value);
+});
+
+// Display options
+document.getElementById('showMastery').addEventListener('change', function(e) {
+    // Re-render with or without mastery colors
+    if (network && nodesData.length) {
+        nodesData.forEach(node => {
+            node.color = e.target.checked ? getNodeColor(node.mastery) : '#94a3b8';
+        });
+        network.setData({
+            nodes: new vis.DataSet(nodesData),
+            edges: new vis.DataSet(edgesData)
+        });
+    }
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => initializeGraph());
+</script>
+{% endblock %}
